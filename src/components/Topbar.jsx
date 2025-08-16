@@ -9,8 +9,6 @@ const Topbar = ({ toggleSidebar }) => {
     const path = location.pathname;
     if (path === '/') return 'Dashboard';
     if (path === '/prescriptions') return 'Prescriptions';
-    if (path === '/validation') return 'Validation';
-    if (path === '/dispensation') return 'Dispensation';
     return 'Dashboard';
   };
 

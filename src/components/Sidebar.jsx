@@ -9,9 +9,7 @@ const Sidebar = ({ isOpen, toggleSidebar, currentPath }) => {
   };
 
   const navItems = [
-    { path: '/prescriptions', label: 'Prescriptions', icon: '📋' },
-    { path: '/validation', label: 'Validation', icon: '✅' },
-    { path: '/dispensation', label: 'Dispensation', icon: '💊' }
+    { path: '/prescriptions', label: 'Prescriptions', icon: '📋' }
   ];
 
   return (
