@@ -4,17 +4,17 @@ import axiosInstance from '../axiosConfig';
 
 const TaskForm = ({ tasks, setTasks, editingTask, setEditingTask }) => {
   const { user } = useAuth();
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '' });
+  const [formData, setFormData] = useState({ title: '', description: '', deadline: '' });
 
   useEffect(() => {
     if (editingTask) {
       setFormData({
         title: editingTask.title,
         description: editingTask.description,
-        dueDate: editingTask.dueDate,
+        deadline: editingTask.deadline,
       });
     } else {
-      setFormData({ title: '', description: '', dueDate: '' });
+      setFormData({ title: '', description: '', deadline: '' });
     }
   }, [editingTask]);
 
@@ -33,7 +33,7 @@ const TaskForm = ({ tasks, setTasks, editingTask, setEditingTask }) => {
         setTasks([...tasks, response.data]);
       }
       setEditingTask(null);
-      setFormData({ title: '', description: '', dueDate: '' });
+      setFormData({ title: '', description: '', deadline: '' });
     } catch (error) {
       alert('Failed to save task.');
     }
@@ -58,8 +58,8 @@ const TaskForm = ({ tasks, setTasks, editingTask, setEditingTask }) => {
       />
       <input
         type="date"
-        value={formData.dueDate}
-        onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+        value={formData.deadline}
+        onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
         className="w-full mb-4 p-2 border rounded"
       />
       <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded">

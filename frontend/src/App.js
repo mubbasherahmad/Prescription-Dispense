@@ -1,19 +1,25 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
-import Tasks from './pages/Tasks';
+import Prescriptions from './pages/Prescriptions';
 
 function App() {
   return (
     <Router>
-      <Navbar />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/*" element={
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Prescriptions />} />
+              <Route path="/prescriptions" element={<Prescriptions />} />
+              <Route path="/profile" element={<Profile />} />
+            </Routes>
+          </Layout>
+        } />
       </Routes>
     </Router>
   );
