@@ -22,7 +22,7 @@ const Login = () => {
   return (
     <div className="max-w-md mx-auto mt-20">
       <form onSubmit={handleSubmit} className="bg-white p-6 shadow-md rounded">
-        <h1 className="text-2xl font-bold mb-4 text-center">Login HAHA</h1>
+        <h1 className="text-2xl font-bold mb-4 text-center">Login</h1>
         <input
           type="email"
           placeholder="Email"
