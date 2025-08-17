@@ -54,6 +54,23 @@ const PrescriptionSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
+    status: {
+      type: String,
+      enum: ['pending', 'validated', 'dispensed', 'expired'],
+      default: 'pending'
+    },
+    expiryDate: {
+      type: Date,
+      default: function() {
+        return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+      }
+    },
+    validatedAt: {
+      type: Date
+    },
+    dispensedAt: {
+      type: Date
+    }
   },
   {
     timestamps: true,
