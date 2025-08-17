@@ -31,7 +31,51 @@ const listPrescriptions = asyncHandler(async (req, res) => {
   return res.json(prescriptions);
 });
 
+// @desc    Validate a prescription
+// @route   PUT /api/prescriptions/:id/validate
+// @access  Private
+const validatePrescription = asyncHandler(async (req, res) => {
+  const prescription = await Prescription.findById(req.params.id);
+  
+  if (!prescription) {
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  if (prescription.status === 'expired') {
+    return res.status(400).json({ message: 'Cannot validate expired prescription' });
+  }
+
+  prescription.status = 'validated';
+  prescription.validatedAt = new Date();
+  await prescription.save();
+
+  return res.json(prescription);
+});
+
+// @desc    Dispense a prescription
+// @route   PUT /api/prescriptions/:id/dispense
+// @access  Private
+const dispensePrescription = asyncHandler(async (req, res) => {
+  const prescription = await Prescription.findById(req.params.id);
+  
+  if (!prescription) {
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  if (prescription.status !== 'validated') {
+    return res.status(400).json({ message: 'Prescription must be validated before dispensing' });
+  }
+
+  prescription.status = 'dispensed';
+  prescription.dispensedAt = new Date();
+  await prescription.save();
+
+  return res.json(prescription);
+});
+
 module.exports = {
   createPrescription,
   listPrescriptions,
+  validatePrescription,
+  dispensePrescription,
 };

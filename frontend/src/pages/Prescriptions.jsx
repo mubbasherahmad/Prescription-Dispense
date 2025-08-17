@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 
 const Prescriptions = () => {
   const { user } = useAuth();
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     patientName: '',
@@ -20,33 +22,156 @@ const Prescriptions = () => {
     notes: ''
   });
 
-  // Sample prescription data
-  const [prescriptions] = useState([
-    {
-      id: 1,
-      prescriptionId: "RX-2024-001",
-      patientName: "John Smith",
-      doctorName: "Dr. Johnson",
-      dateIssued: "2024-01-15",
-      status: "Active"
-    },
-    {
-      id: 2,
-      prescriptionId: "RX-2024-002", 
-      patientName: "John Smith",
-      doctorName: "Dr. Johnson",
-      dateIssued: "2024-01-20",
-      status: "Active"
-    },
-    {
-      id: 3,
-      prescriptionId: "RX-2024-003",
-      patientName: "John Smith", 
-      doctorName: "Dr. Johnson",
-      dateIssued: "2024-01-22",
-      status: "Active"
+  const filteredPrescriptions = prescriptions.filter(prescription =>
+    prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    prescription.medications.some(med => 
+      med.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  const handleValidate = async (prescriptionId) => {
+    try {
+      await axiosInstance.put(`/api/prescriptions/${prescriptionId}/validate`, {}, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      setPrescriptions(prescriptions.map(p => 
+        p._id === prescriptionId 
+          ? { ...p, status: 'validated', validatedAt: new Date() }
+          : p
+      ));
+      alert('Prescription validated!');
+    } catch (error) {
+      alert('Error validating prescription');
     }
-  ]);
+  };
+
+  const handleDispense = async (prescriptionId) => {
+    try {
+      await axiosInstance.put(`/api/prescriptions/${prescriptionId}/dispense`, {}, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      setPrescriptions(prescriptions.map(p => 
+        p._id === prescriptionId 
+          ? { ...p, status: 'dispensed', dispensedAt: new Date() }
+          : p
+      ));
+      alert('Prescription dispensed!');
+    } catch (error) {
+      alert('Error dispensing prescription');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'validated': return 'bg-blue-100 text-blue-800';
+      case 'dispensed': return 'bg-green-100 text-green-800';
+      case 'expired': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleMedicationChange = (index, field, value) => {
+    const updatedMedications = [...formData.medications];
+    updatedMedications[index][field] = value;
+    setFormData({
+      ...formData,
+      medications: updatedMedications
+    });
+  };
+
+  const addMedication = () => {
+    setFormData({
+      ...formData,
+      medications: [...formData.medications, {
+        medicationName: '',
+        dosage: '',
+        frequency: '',
+        duration: ''
+      }]
+    });
+  };
+
+  const removeMedication = (index) => {
+    if (formData.medications.length > 1) {
+      const updatedMedications = formData.medications.filter((_, i) => i !== index);
+      setFormData({
+        ...formData,
+        medications: updatedMedications
+      });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const prescriptionData = {
+        patientName: formData.patientName,
+        patientAge: parseInt(formData.patientAge),
+        medications: formData.medications.map(med => ({
+          name: med.medicationName,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          duration: med.duration
+        })),
+        notes: `Doctor: ${formData.doctorName} (${formData.doctorId}), Prescription ID: ${formData.prescriptionId}. ${formData.notes}`.trim()
+      };
+
+      const response = await axiosInstance.post('/api/prescriptions', prescriptionData, {
+        headers: { 
+          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setPrescriptions([response.data, ...prescriptions]);
+      alert('Prescription added!');
+      setShowModal(false);
+      setFormData({
+        patientName: '',
+        patientAge: '',
+        doctorName: '',
+        doctorId: '',
+        prescriptionId: '',
+        medications: [{
+          medicationName: '',
+          dosage: '',
+          frequency: '',
+          duration: ''
+        }],
+        notes: ''
+      });
+    } catch (error) {
+      alert('Error adding prescription');
+    }
+  };
+
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      try {
+        const response = await axiosInstance.get('/api/prescriptions', {
+          headers: { Authorization: `Bearer ${user.token}` }
+        });
+        setPrescriptions(response.data);
+      } catch (error) {
+        console.error('Error fetching prescriptions:', error);
+      }
+    };
+
+    if (user) {
+      fetchPrescriptions();
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({
@@ -155,31 +280,93 @@ const Prescriptions = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-4">
+          {/* Search Bar */}
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search by patient name or medication..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           {/* Prescriptions Table */}
           <div className="bg-white rounded-lg border border-gray-300 mb-6">
             <h3 className="text-lg font-bold p-4 border-b border-gray-300">All Prescriptions</h3>
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-3 border-b border-gray-300">Prescription ID</th>
-                  <th className="text-left p-3 border-b border-gray-300">Patient</th>
-                  <th className="text-left p-3 border-b border-gray-300">Doctor</th>
-                  <th className="text-left p-3 border-b border-gray-300">Date</th>
-                  <th className="text-left p-3 border-b border-gray-300">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prescriptions.map((prescription) => (
-                  <tr key={prescription.id} className="border-b border-gray-200">
-                    <td className="p-3">{prescription.prescriptionId}</td>
-                    <td className="p-3">{prescription.patientName}</td>
-                    <td className="p-3">{prescription.doctorName}</td>
-                    <td className="p-3">{prescription.dateIssued}</td>
-                    <td className="p-3">{prescription.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {filteredPrescriptions.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                {prescriptions.length === 0 
+                  ? "No prescriptions found. Add your first prescription to get started."
+                  : "No prescriptions match your search."
+                }
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-3 border-b border-gray-300">Patient</th>
+                      <th className="text-left p-3 border-b border-gray-300">Age</th>
+                      <th className="text-left p-3 border-b border-gray-300">Medications</th>
+                      <th className="text-left p-3 border-b border-gray-300">Status</th>
+                      <th className="text-left p-3 border-b border-gray-300">Expiry</th>
+                      <th className="text-left p-3 border-b border-gray-300">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPrescriptions.map((prescription) => (
+                      <tr key={prescription._id} className="border-b border-gray-200">
+                        <td className="p-3 font-medium">{prescription.patientName}</td>
+                        <td className="p-3">{prescription.patientAge}</td>
+                        <td className="p-3">
+                          <div className="space-y-1">
+                            {prescription.medications.map((med, index) => (
+                              <div key={index} className="text-sm">
+                                <span className="font-medium">{med.name}</span> - {med.dosage}
+                                <br />
+                                <span className="text-gray-500">{med.frequency}, {med.duration}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(prescription.status)}`}>
+                            {prescription.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm">
+                          {new Date(prescription.expiryDate).toLocaleDateString()}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex gap-2">
+                            {prescription.status === 'pending' && (
+                              <button
+                                onClick={() => handleValidate(prescription._id)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                              >
+                                Validate
+                              </button>
+                            )}
+                            {prescription.status === 'validated' && (
+                              <button
+                                onClick={() => handleDispense(prescription._id)}
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                              >
+                                Dispense
+                              </button>
+                            )}
+                            {prescription.status === 'dispensed' && (
+                              <span className="text-green-600 text-sm font-medium">Completed</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
       </div>
 
@@ -369,7 +556,7 @@ const Prescriptions = () => {
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors font-medium"
                 >
-                  Create
+                  Add Prescription
                 </button>
                 <button
                   type="button"

@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
