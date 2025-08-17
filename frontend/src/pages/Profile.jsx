@@ -76,7 +76,8 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
@@ -107,11 +108,11 @@ const Profile = () => {
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-4">
-        <div className="w-full px-4">
+      <div className="max-w-7xl mx-auto px-6 py-4">
           {/* Personal Information - Full Width */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
@@ -184,7 +185,6 @@ const Profile = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
