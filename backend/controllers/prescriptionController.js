@@ -77,6 +77,53 @@ const dispensePrescription = asyncHandler(async (req, res) => {
   return res.json(prescription);
 });
 
+// @desc    Update a prescription (before dispensing)
+// @route   PUT /api/prescriptions/:id
+// @access  Private
+const updatePrescription = asyncHandler(async (req, res) => {
+  const prescription = await Prescription.findById(req.params.id);
+  
+  if (!prescription) {
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  // Check if prescription belongs to the user
+  if (prescription.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to edit this prescription' });
+  }
+
+  // Check if prescription can be edited (not dispensed, expired, or cancelled)
+  if (prescription.status === 'dispensed') {
+    return res.status(400).json({ message: 'Cannot edit a dispensed prescription' });
+  }
+
+  if (prescription.status === 'expired') {
+    return res.status(400).json({ message: 'Cannot edit an expired prescription' });
+  }
+
+  if (prescription.status === 'cancelled') {
+    return res.status(400).json({ message: 'Cannot edit a cancelled prescription' });
+  }
+
+  // Update allowed fields
+  const { expiryDate, medications, notes } = req.body;
+
+  if (expiryDate) {
+    prescription.expiryDate = new Date(expiryDate);
+  }
+
+  if (medications && Array.isArray(medications) && medications.length > 0) {
+    prescription.medications = medications;
+  }
+
+  if (notes !== undefined) {
+    prescription.notes = notes;
+  }
+
+  const updatedPrescription = await prescription.save();
+  return res.json(updatedPrescription);
+});
+
 // @desc    Cancel a prescription
 // @route   PUT /api/prescriptions/:id/cancel
 // @access  Private
@@ -114,5 +161,6 @@ module.exports = {
   listPrescriptions,
   validatePrescription,
   dispensePrescription,
+  updatePrescription,
   cancelPrescription,
 };

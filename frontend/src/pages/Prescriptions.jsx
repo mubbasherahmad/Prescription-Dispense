@@ -7,6 +7,8 @@ const Prescriptions = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPrescription, setEditingPrescription] = useState(null);
   const [formData, setFormData] = useState({
     patientName: '',
     patientAge: '',
@@ -176,6 +178,32 @@ const Prescriptions = () => {
     }
   };
 
+  const handleEdit = (prescription) => {
+    setEditingPrescription(prescription);
+    setShowEditModal(true);
+  };
+
+  const handleUpdatePrescription = async (updatedData) => {
+    try {
+      const response = await axiosInstance.put(`/api/prescriptions/${editingPrescription._id}`, updatedData, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      
+      setPrescriptions(prescriptions.map(p => 
+        p._id === editingPrescription._id ? response.data : p
+      ));
+      setShowEditModal(false);
+      setEditingPrescription(null);
+      alert('Prescription updated successfully!');
+    } catch (error) {
+      alert('Error updating prescription');
+    }
+  };
+
+  const canEditPrescription = (status) => {
+    return status === 'pending' || status === 'validated';
+  };
+
   useEffect(() => {
     const fetchPrescriptions = async () => {
       try {
@@ -277,6 +305,14 @@ const Prescriptions = () => {
                         </td>
                         <td className="p-3">
                           <div className="flex gap-2 flex-wrap">
+                            {canEditPrescription(prescription.status) && (
+                              <button
+                                onClick={() => handleEdit(prescription)}
+                                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                              >
+                                Edit
+                              </button>
+                            )}
                             {prescription.status === 'pending' && (
                               <>
                                 <button
@@ -529,6 +565,214 @@ const Prescriptions = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingPrescription && (
+        <EditPrescriptionModal
+          prescription={editingPrescription}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingPrescription(null);
+          }}
+          onUpdate={handleUpdatePrescription}
+        />
+      )}
+    </div>
+  );
+};
+
+// Edit Prescription Modal Component
+const EditPrescriptionModal = ({ prescription, onClose, onUpdate }) => {
+  const [editData, setEditData] = useState({
+    expiryDate: prescription.expiryDate ? new Date(prescription.expiryDate).toISOString().split('T')[0] : '',
+    medications: prescription.medications.map(med => ({ ...med })),
+    notes: prescription.notes || ''
+  });
+
+  const handleChange = (e) => {
+    setEditData({
+      ...editData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleMedicationChange = (index, field, value) => {
+    const updatedMedications = [...editData.medications];
+    updatedMedications[index][field] = value;
+    setEditData({
+      ...editData,
+      medications: updatedMedications
+    });
+  };
+
+  const addMedication = () => {
+    setEditData({
+      ...editData,
+      medications: [...editData.medications, {
+        name: '',
+        dosage: '',
+        frequency: '',
+        duration: ''
+      }]
+    });
+  };
+
+  const removeMedication = (index) => {
+    if (editData.medications.length > 1) {
+      const updatedMedications = editData.medications.filter((_, i) => i !== index);
+      setEditData({
+        ...editData,
+        medications: updatedMedications
+      });
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(editData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-screen overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Edit Prescription</h2>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ✕
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Patient: {prescription.patientName} (Age: {prescription.patientAge})
+            </label>
+            <p className="text-sm text-gray-500">Patient details cannot be changed</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expiry Date *
+            </label>
+            <input
+              type="date"
+              name="expiryDate"
+              value={editData.expiryDate}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Medications *
+              </label>
+              <button
+                type="button"
+                onClick={addMedication}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                + Add Another
+              </button>
+            </div>
+            
+            {editData.medications.map((medication, index) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-3 mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-600">Medication {index + 1}</span>
+                  {editData.medications.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMedication(index)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Medication name"
+                    value={medication.name}
+                    onChange={(e) => handleMedicationChange(index, 'name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Dosage"
+                      value={medication.dosage}
+                      onChange={(e) => handleMedicationChange(index, 'dosage', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    
+                    <select
+                      value={medication.frequency}
+                      onChange={(e) => handleMedicationChange(index, 'frequency', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Frequency</option>
+                      <option value="Once daily">Daily</option>
+                      <option value="Twice daily">Twice</option>
+                      <option value="Three times daily">3x daily</option>
+                    </select>
+                    
+                    <input
+                      type="text"
+                      placeholder="Duration"
+                      value={medication.duration}
+                      onChange={(e) => handleMedicationChange(index, 'duration', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={editData.notes}
+              onChange={handleChange}
+              rows="3"
+              placeholder="Special instructions..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors font-medium"
+            >
+              Update Prescription
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createPrescription, listPrescriptions, validatePrescription, dispensePrescription, cancelPrescription } = require('../controllers/prescriptionController');
+const { createPrescription, listPrescriptions, validatePrescription, dispensePrescription, updatePrescription, cancelPrescription } = require('../controllers/prescriptionController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -15,5 +15,8 @@ router.route('/:id/dispense')
 
 router.route('/:id/cancel')
   .put(protect, cancelPrescription);
+
+router.route('/:id')
+  .put(protect, updatePrescription);
 
 module.exports = router;
