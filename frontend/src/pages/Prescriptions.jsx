@@ -6,9 +6,93 @@ const Prescriptions = () => {
   const { user } = useAuth();
   const [prescriptions, setPrescriptions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPrescription, setEditingPrescription] = useState(null);
+
+  // Dummy data for development
+  const dummyPrescriptions = [
+    {
+      _id: 'dummy1',
+      patientName: 'John Smith',
+      patientAge: 45,
+      medications: [
+        { name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily', duration: '30 days' },
+        { name: 'Metformin', dosage: '500mg', frequency: 'Twice daily', duration: '30 days' }
+      ],
+      status: 'pending',
+      expiryDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      notes: 'Take with food. Monitor blood pressure.'
+    },
+    {
+      _id: 'dummy2',
+      patientName: 'Sarah Johnson',
+      patientAge: 32,
+      medications: [
+        { name: 'Amoxicillin', dosage: '875mg', frequency: 'Twice daily', duration: '10 days' }
+      ],
+      status: 'validated',
+      expiryDate: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      validatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
+      notes: 'Complete full course even if feeling better.'
+    },
+    {
+      _id: 'dummy3',
+      patientName: 'Robert Davis',
+      patientAge: 67,
+      medications: [
+        { name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily', duration: '90 days' },
+        { name: 'Aspirin', dosage: '81mg', frequency: 'Once daily', duration: '90 days' }
+      ],
+      status: 'dispensed',
+      expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      validatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      dispensedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      notes: 'Take in the evening. Regular cholesterol monitoring required.'
+    },
+    {
+      _id: 'dummy4',
+      patientName: 'Maria Garcia',
+      patientAge: 28,
+      medications: [
+        { name: 'Ibuprofen', dosage: '600mg', frequency: 'Three times daily', duration: '7 days' }
+      ],
+      status: 'cancelled',
+      expiryDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      cancelledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      notes: 'Patient reported allergy to NSAIDs.'
+    },
+    {
+      _id: 'dummy5',
+      patientName: 'Michael Brown',
+      patientAge: 55,
+      medications: [
+        { name: 'Omeprazole', dosage: '20mg', frequency: 'Once daily', duration: '14 days' }
+      ],
+      status: 'pending',
+      expiryDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      notes: 'Take 30 minutes before breakfast.'
+    },
+    {
+      _id: 'dummy6',
+      patientName: 'Lisa Wilson',
+      patientAge: 41,
+      medications: [
+        { name: 'Levothyroxine', dosage: '75mcg', frequency: 'Once daily', duration: '90 days' }
+      ],
+      status: 'validated',
+      expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
+      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
+      validatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      notes: 'Take on empty stomach, 1 hour before food.'
+    }
+  ];
   const [formData, setFormData] = useState({
     patientName: '',
     patientAge: '',
@@ -24,12 +108,29 @@ const Prescriptions = () => {
     notes: ''
   });
 
-  const filteredPrescriptions = prescriptions.filter(prescription =>
-    prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    prescription.medications.some(med => 
-      med.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+  // Combine API data with dummy data for development
+  const allPrescriptions = [...prescriptions, ...dummyPrescriptions];
+
+  const filteredPrescriptions = allPrescriptions.filter(prescription => {
+    const matchesSearch = prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prescription.medications.some(med => 
+        med.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    
+    const matchesStatus = statusFilter === 'all' || prescription.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Summary statistics
+  const summary = {
+    total: allPrescriptions.length,
+    pending: allPrescriptions.filter(p => p.status === 'pending').length,
+    validated: allPrescriptions.filter(p => p.status === 'validated').length,
+    dispensed: allPrescriptions.filter(p => p.status === 'dispensed').length,
+    cancelled: allPrescriptions.filter(p => p.status === 'cancelled').length,
+    expired: allPrescriptions.filter(p => p.status === 'expired').length,
+  };
 
   const handleValidate = async (prescriptionId) => {
     try {
@@ -245,20 +346,46 @@ const Prescriptions = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-4">
-          {/* Search Bar */}
-          <div className="mb-4">
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
             <input
               type="text"
               placeholder="Search by patient name or medication..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="validated">Validated</option>
+            <option value="dispensed">Dispensed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
 
           {/* Prescriptions Table */}
           <div className="bg-white rounded-lg border border-gray-300 mb-6">
-            <h3 className="text-lg font-bold p-4 border-b border-gray-300">All Prescriptions</h3>
+            <div className="flex items-center justify-between p-4 border-b border-gray-300">
+              <h3 className="text-lg font-bold">
+                {statusFilter === 'all' ? 'All Prescriptions' : 
+                 statusFilter === 'pending' ? 'Pending Prescriptions' :
+                 statusFilter === 'validated' ? 'Validated Prescriptions' :
+                 statusFilter === 'dispensed' ? 'Dispensed Prescriptions' :
+                 statusFilter === 'cancelled' ? 'Cancelled Prescriptions' :
+                 statusFilter === 'expired' ? 'Expired Prescriptions' : 'Prescriptions'}
+              </h3>
+              <span className="text-sm text-gray-500">
+                {filteredPrescriptions.length} prescriptions
+              </span>
+            </div>
             {filteredPrescriptions.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 {prescriptions.length === 0 
