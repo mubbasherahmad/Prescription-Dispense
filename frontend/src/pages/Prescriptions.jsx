@@ -346,29 +346,58 @@ const Prescriptions = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-4">
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search by patient name or medication..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Filter Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div 
+            onClick={() => setStatusFilter('all')}
+            className={`bg-white rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
+              statusFilter === 'all' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+            }`}
           >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="validated">Validated</option>
-            <option value="dispensed">Dispensed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="expired">Expired</option>
-          </select>
+            <h4 className="text-sm text-gray-600 mb-1">All Prescriptions</h4>
+            <p className="text-2xl font-semibold text-gray-900">{summary.total}</p>
+          </div>
+          
+          <div 
+            onClick={() => setStatusFilter('pending')}
+            className={`bg-white rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
+              statusFilter === 'pending' ? 'ring-2 ring-yellow-500 bg-yellow-50' : ''
+            }`}
+          >
+            <h4 className="text-sm text-gray-600 mb-1">Need Validation</h4>
+            <p className="text-2xl font-semibold text-yellow-700">{summary.pending}</p>
+          </div>
+          
+          <div 
+            onClick={() => setStatusFilter('validated')}
+            className={`bg-white rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
+              statusFilter === 'validated' ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+            }`}
+          >
+            <h4 className="text-sm text-gray-600 mb-1">Ready to Dispense</h4>
+            <p className="text-2xl font-semibold text-blue-700">{summary.validated}</p>
+          </div>
+          
+          <div 
+            onClick={() => setStatusFilter('dispensed')}
+            className={`bg-white rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md ${
+              statusFilter === 'dispensed' ? 'ring-2 ring-green-500 bg-green-50' : ''
+            }`}
+          >
+            <h4 className="text-sm text-gray-600 mb-1">Completed</h4>
+            <p className="text-2xl font-semibold text-green-700">{summary.dispensed}</p>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search by patient name or medication..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
           {/* Prescriptions Table */}
