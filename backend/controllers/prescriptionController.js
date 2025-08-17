@@ -66,6 +66,10 @@ const dispensePrescription = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Prescription must be validated before dispensing' });
   }
 
+  if (prescription.status === 'cancelled') {
+    return res.status(400).json({ message: 'Cannot dispense a cancelled prescription' });
+  }
+
   prescription.status = 'dispensed';
   prescription.dispensedAt = new Date();
   await prescription.save();
@@ -120,10 +124,43 @@ const updatePrescription = asyncHandler(async (req, res) => {
   return res.json(updatedPrescription);
 });
 
+// @desc    Cancel a prescription
+// @route   PUT /api/prescriptions/:id/cancel
+// @access  Private
+const cancelPrescription = asyncHandler(async (req, res) => {
+  const prescription = await Prescription.findById(req.params.id);
+  
+  if (!prescription) {
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  // Check if prescription belongs to the user
+  if (prescription.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to cancel this prescription' });
+  }
+
+  // Prevent canceling already dispensed prescriptions
+  if (prescription.status === 'dispensed') {
+    return res.status(400).json({ message: 'Cannot cancel a dispensed prescription' });
+  }
+
+  // Prevent canceling already cancelled prescriptions
+  if (prescription.status === 'cancelled') {
+    return res.status(400).json({ message: 'Prescription is already cancelled' });
+  }
+
+  prescription.status = 'cancelled';
+  prescription.cancelledAt = new Date();
+  await prescription.save();
+
+  return res.json(prescription);
+});
+
 module.exports = {
   createPrescription,
   listPrescriptions,
   validatePrescription,
   dispensePrescription,
   updatePrescription,
+  cancelPrescription,
 };
