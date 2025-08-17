@@ -5,8 +5,6 @@ const app = require('../server');
 const connectDB = require('../config/db');
 const mongoose = require('mongoose');
 const sinon = require('sinon');
-const Prescription = require('../models/Prescription');
-const { createPrescription, listPrescriptions } = require('../controllers/prescriptionController');
 const { expect } = chai;
 
 chai.use(chaiHttp);
@@ -17,6 +15,10 @@ let port;
 describe('CreatePrescription Function Test', () => {
 
   it('should create a new prescription successfully', async () => {
+    // Import modules inside the test to enable proper stubbing
+    const Prescription = require('../models/Prescription');
+    const { createPrescription } = require('../controllers/prescriptionController');
+
     // Mock request data
     const req = {
       user: { _id: new mongoose.Types.ObjectId() },
@@ -28,17 +30,20 @@ describe('CreatePrescription Function Test', () => {
       }
     };
 
-    // Mock prescription that would be created
-    const createdPrescription = { 
+    // Mock prescription that would be saved
+    const savedPrescription = { 
       _id: new mongoose.Types.ObjectId(), 
       ...req.body, 
-      user: req.user._id,
-      save: sinon.stub().resolvesThis()
+      user: req.user._id
     };
 
-    // Stub Prescription constructor to return the mock prescription
-    const PrescriptionStub = sinon.stub().returns(createdPrescription);
-    sinon.replace(Prescription, 'constructor', PrescriptionStub);
+    // Create a mock instance
+    const mockInstance = {
+      save: sinon.stub().resolves(savedPrescription)
+    };
+
+    // Stub the Prescription constructor to return mock instance
+    sinon.stub(Prescription.prototype, 'save').resolves(savedPrescription);
 
     // Mock response object
     const res = {
@@ -51,13 +56,14 @@ describe('CreatePrescription Function Test', () => {
 
     // Assertions
     expect(res.status.calledWith(201)).to.be.true;
-    expect(res.json.calledWith(createdPrescription)).to.be.true;
+    expect(res.json.calledWith(savedPrescription)).to.be.true;
 
-    // Restore stubbed methods
     sinon.restore();
   });
 
   it('should return 400 if required fields are missing', async () => {
+    const { createPrescription } = require('../controllers/prescriptionController');
+    
     // Mock request data with missing fields
     const req = {
       user: { _id: new mongoose.Types.ObjectId() },
@@ -84,6 +90,9 @@ describe('CreatePrescription Function Test', () => {
 describe('ListPrescriptions Function Test', () => {
 
   it('should return prescriptions for the given user', async () => {
+    const Prescription = require('../models/Prescription');
+    const { listPrescriptions } = require('../controllers/prescriptionController');
+    
     // Mock user ID
     const userId = new mongoose.Types.ObjectId();
 
