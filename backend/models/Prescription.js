@@ -56,7 +56,7 @@ const PrescriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'validated', 'dispensed', 'expired'],
+      enum: ['pending', 'validated', 'dispensed', 'expired', 'cancelled'],
       default: 'pending'
     },
     expiryDate: {
@@ -69,6 +69,9 @@ const PrescriptionSchema = new mongoose.Schema(
       type: Date
     },
     dispensedAt: {
+      type: Date
+    },
+    cancelledAt: {
       type: Date
     }
   },

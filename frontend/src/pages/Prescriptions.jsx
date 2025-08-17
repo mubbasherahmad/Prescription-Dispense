@@ -63,12 +63,32 @@ const Prescriptions = () => {
     }
   };
 
+  const handleCancel = async (prescriptionId) => {
+    if (window.confirm('Are you sure you want to cancel this prescription? This action cannot be undone.')) {
+      try {
+        await axiosInstance.put(`/api/prescriptions/${prescriptionId}/cancel`, {}, {
+          headers: { Authorization: `Bearer ${user.token}` }
+        });
+        
+        setPrescriptions(prescriptions.map(p => 
+          p._id === prescriptionId 
+            ? { ...p, status: 'cancelled', cancelledAt: new Date() }
+            : p
+        ));
+        alert('Prescription cancelled!');
+      } catch (error) {
+        alert('Error cancelling prescription');
+      }
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'validated': return 'bg-blue-100 text-blue-800';
       case 'dispensed': return 'bg-green-100 text-green-800';
       case 'expired': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -256,25 +276,47 @@ const Prescriptions = () => {
                           {new Date(prescription.expiryDate).toLocaleDateString()}
                         </td>
                         <td className="p-3">
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
                             {prescription.status === 'pending' && (
-                              <button
-                                onClick={() => handleValidate(prescription._id)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                              >
-                                Validate
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleValidate(prescription._id)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Validate
+                                </button>
+                                <button
+                                  onClick={() => handleCancel(prescription._id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </>
                             )}
                             {prescription.status === 'validated' && (
-                              <button
-                                onClick={() => handleDispense(prescription._id)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
-                              >
-                                Dispense
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleDispense(prescription._id)}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Dispense
+                                </button>
+                                <button
+                                  onClick={() => handleCancel(prescription._id)}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </>
                             )}
                             {prescription.status === 'dispensed' && (
                               <span className="text-green-600 text-sm font-medium">Completed</span>
+                            )}
+                            {prescription.status === 'cancelled' && (
+                              <span className="text-gray-600 text-sm font-medium">Cancelled</span>
+                            )}
+                            {prescription.status === 'expired' && (
+                              <span className="text-red-600 text-sm font-medium">Expired</span>
                             )}
                           </div>
                         </td>
