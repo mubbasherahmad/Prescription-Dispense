@@ -1,6 +1,25 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import axiosInstance from '../axiosConfig';
 
 const Prescriptions = () => {
+  const { user } = useAuth();
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    patientName: '',
+    patientAge: '',
+    doctorName: '',
+    doctorId: '',
+    prescriptionId: '',
+    medications: [{
+      medicationName: '',
+      dosage: '',
+      frequency: '',
+      duration: ''
+    }],
+    notes: ''
+  });
+
   // Sample prescription data
   const [prescriptions] = useState([
     {
@@ -29,6 +48,89 @@ const Prescriptions = () => {
     }
   ]);
 
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleMedicationChange = (index, field, value) => {
+    const updatedMedications = [...formData.medications];
+    updatedMedications[index][field] = value;
+    setFormData({
+      ...formData,
+      medications: updatedMedications
+    });
+  };
+
+  const addMedication = () => {
+    setFormData({
+      ...formData,
+      medications: [...formData.medications, {
+        medicationName: '',
+        dosage: '',
+        frequency: '',
+        duration: ''
+      }]
+    });
+  };
+
+  const removeMedication = (index) => {
+    if (formData.medications.length > 1) {
+      const updatedMedications = formData.medications.filter((_, i) => i !== index);
+      setFormData({
+        ...formData,
+        medications: updatedMedications
+      });
+    }
+  };
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const prescriptionData = {
+        patientName: formData.patientName,
+        patientAge: parseInt(formData.patientAge),
+        medications: formData.medications.map(med => ({
+          name: med.medicationName,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          duration: med.duration
+        })),
+        notes: `Doctor: ${formData.doctorName} (${formData.doctorId}), Prescription ID: ${formData.prescriptionId}. ${formData.notes}`.trim()
+      };
+
+      await axiosInstance.post('/api/prescriptions', prescriptionData, {
+        headers: { 
+          Authorization: `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('Prescription added!');
+      setShowModal(false);
+      setFormData({
+        patientName: '',
+        patientAge: '',
+        doctorName: '',
+        doctorId: '',
+        prescriptionId: '',
+        medications: [{
+          medicationName: '',
+          dosage: '',
+          frequency: '',
+          duration: ''
+        }],
+        notes: ''
+      });
+    } catch (error) {
+      alert('Error adding prescription');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Bar */}
@@ -40,8 +142,11 @@ const Prescriptions = () => {
             <p className="text-gray-600 text-sm mt-1">Manage and track your prescription medications</p>
           </div>
           <div className="space-x-3">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium">
-              Create Prescription
+            <button 
+              onClick={() => setShowModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+            >
+              Add Prescription
             </button>
           </div>
         </div>
@@ -77,6 +182,207 @@ const Prescriptions = () => {
             </table>
           </div>
       </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Add Prescription</h2>
+              <button 
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prescription ID *
+                  </label>
+                  <input
+                    type="text"
+                    name="prescriptionId"
+                    value={formData.prescriptionId}
+                    onChange={handleChange}
+                    placeholder="RX-2024-001"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Doctor ID *
+                  </label>
+                  <input
+                    type="text"
+                    name="doctorId"
+                    value={formData.doctorId}
+                    onChange={handleChange}
+                    placeholder="DR001"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Doctor Name *
+                </label>
+                <input
+                  type="text"
+                  name="doctorName"
+                  value={formData.doctorName}
+                  onChange={handleChange}
+                  placeholder="Dr. Johnson"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Patient Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="patientName"
+                    value={formData.patientName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Patient Age *
+                  </label>
+                  <input
+                    type="number"
+                    name="patientAge"
+                    value={formData.patientAge}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Medications *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addMedication}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    + Add Another
+                  </button>
+                </div>
+                
+                {formData.medications.map((medication, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-3 mb-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600">Medication {index + 1}</span>
+                      {formData.medications.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMedication(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Medication name"
+                        value={medication.medicationName}
+                        onChange={(e) => handleMedicationChange(index, 'medicationName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Dosage"
+                          value={medication.dosage}
+                          onChange={(e) => handleMedicationChange(index, 'dosage', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                        
+                        <select
+                          value={medication.frequency}
+                          onChange={(e) => handleMedicationChange(index, 'frequency', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        >
+                          <option value="">Frequency</option>
+                          <option value="Once daily">Daily</option>
+                          <option value="Twice daily">Twice</option>
+                          <option value="Three times daily">3x daily</option>
+                        </select>
+                        
+                        <input
+                          type="text"
+                          placeholder="Duration"
+                          value={medication.duration}
+                          onChange={(e) => handleMedicationChange(index, 'duration', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  rows="2"
+                  placeholder="Special instructions..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors font-medium"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
