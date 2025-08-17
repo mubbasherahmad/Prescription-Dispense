@@ -5,11 +5,17 @@ const Prescription = require('../models/Prescription');
 // @route   POST /api/prescriptions
 // @access  Private
 const createPrescription = asyncHandler(async (req, res) => {
+  console.log('Create prescription request received');
+  console.log('Request body:', req.body);
+  
   const { patientName, patientAge, medications, notes } = req.body;
 
   if (!patientName || patientAge === undefined || !Array.isArray(medications) || medications.length === 0) {
+    console.log('Missing required fields:', { patientName, patientAge, medications: Array.isArray(medications), medicationsLength: medications?.length });
     return res.status(400).json({ message: 'Please provide all required fields' });
   }
+
+  console.log('Creating prescription with data:', { patientName, patientAge, medications, notes });
 
   const prescription = new Prescription({
     user: req.user._id,
@@ -19,7 +25,9 @@ const createPrescription = asyncHandler(async (req, res) => {
     notes,
   });
 
+  console.log('Saving prescription...');
   const createdPrescription = await prescription.save();
+  console.log('Prescription created successfully:', createdPrescription._id);
   return res.status(201).json(createdPrescription);
 });
 
@@ -45,6 +53,11 @@ const validatePrescription = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cannot validate expired prescription' });
   }
 
+  if (prescription.status === 'cancelled') {
+    return res.status(400).json({ message: 'Cannot validate cancelled prescription' });
+  }
+
+  // Simple validation - just check if not expired and not cancelled
   prescription.status = 'validated';
   prescription.validatedAt = new Date();
   await prescription.save();
@@ -77,36 +90,37 @@ const dispensePrescription = asyncHandler(async (req, res) => {
   return res.json(prescription);
 });
 
-// @desc    Update a prescription (before dispensing)
+// @desc    Update a prescription
 // @route   PUT /api/prescriptions/:id
 // @access  Private
 const updatePrescription = asyncHandler(async (req, res) => {
+  console.log('Update request received for prescription:', req.params.id);
+  console.log('Request body:', req.body);
+  
   const prescription = await Prescription.findById(req.params.id);
   
   if (!prescription) {
+    console.log('Prescription not found');
     return res.status(404).json({ message: 'Prescription not found' });
   }
 
-  // Check if prescription belongs to the user
-  if (prescription.user.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Not authorized to edit this prescription' });
-  }
+  console.log('Found prescription:', prescription);
 
-  // Check if prescription can be edited (not dispensed, expired, or cancelled)
+  // Check if prescription can be edited (cannot edit dispensed or cancelled prescriptions)
   if (prescription.status === 'dispensed') {
+    console.log('Cannot edit dispensed prescription');
     return res.status(400).json({ message: 'Cannot edit a dispensed prescription' });
   }
 
-  if (prescription.status === 'expired') {
-    return res.status(400).json({ message: 'Cannot edit an expired prescription' });
-  }
-
   if (prescription.status === 'cancelled') {
+    console.log('Cannot edit cancelled prescription');
     return res.status(400).json({ message: 'Cannot edit a cancelled prescription' });
   }
 
   // Update allowed fields
   const { expiryDate, medications, notes } = req.body;
+
+  console.log('Updating fields:', { expiryDate, medications, notes });
 
   if (expiryDate) {
     prescription.expiryDate = new Date(expiryDate);
@@ -120,7 +134,9 @@ const updatePrescription = asyncHandler(async (req, res) => {
     prescription.notes = notes;
   }
 
+  console.log('Saving prescription...');
   const updatedPrescription = await prescription.save();
+  console.log('Prescription saved successfully');
   return res.json(updatedPrescription);
 });
 

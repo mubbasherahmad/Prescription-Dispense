@@ -16,7 +16,13 @@ router.route('/:id/dispense')
 router.route('/:id/cancel')
   .put(protect, cancelPrescription);
 
-router.route('/:id')
+router.route('/:id/update')
   .put(protect, updatePrescription);
+
+// Test route to debug
+router.get('/:id/test', protect, (req, res) => {
+  console.log('Test route hit for ID:', req.params.id);
+  res.json({ message: 'Route working', id: req.params.id });
+});
 
 module.exports = router;

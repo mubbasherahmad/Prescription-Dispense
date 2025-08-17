@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
+import ToastContainer from '../components/ToastContainer';
 
 const Prescriptions = () => {
   const { user } = useAuth();
@@ -10,89 +11,19 @@ const Prescriptions = () => {
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPrescription, setEditingPrescription] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
-  // Dummy data for development
-  const dummyPrescriptions = [
-    {
-      _id: 'dummy1',
-      patientName: 'John Smith',
-      patientAge: 45,
-      medications: [
-        { name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily', duration: '30 days' },
-        { name: 'Metformin', dosage: '500mg', frequency: 'Twice daily', duration: '30 days' }
-      ],
-      status: 'pending',
-      expiryDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      notes: 'Take with food. Monitor blood pressure.'
-    },
-    {
-      _id: 'dummy2',
-      patientName: 'Sarah Johnson',
-      patientAge: 32,
-      medications: [
-        { name: 'Amoxicillin', dosage: '875mg', frequency: 'Twice daily', duration: '10 days' }
-      ],
-      status: 'validated',
-      expiryDate: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      validatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-      notes: 'Complete full course even if feeling better.'
-    },
-    {
-      _id: 'dummy3',
-      patientName: 'Robert Davis',
-      patientAge: 67,
-      medications: [
-        { name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily', duration: '90 days' },
-        { name: 'Aspirin', dosage: '81mg', frequency: 'Once daily', duration: '90 days' }
-      ],
-      status: 'dispensed',
-      expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      validatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-      dispensedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      notes: 'Take in the evening. Regular cholesterol monitoring required.'
-    },
-    {
-      _id: 'dummy4',
-      patientName: 'Maria Garcia',
-      patientAge: 28,
-      medications: [
-        { name: 'Ibuprofen', dosage: '600mg', frequency: 'Three times daily', duration: '7 days' }
-      ],
-      status: 'cancelled',
-      expiryDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      cancelledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      notes: 'Patient reported allergy to NSAIDs.'
-    },
-    {
-      _id: 'dummy5',
-      patientName: 'Michael Brown',
-      patientAge: 55,
-      medications: [
-        { name: 'Omeprazole', dosage: '20mg', frequency: 'Once daily', duration: '14 days' }
-      ],
-      status: 'pending',
-      expiryDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      notes: 'Take 30 minutes before breakfast.'
-    },
-    {
-      _id: 'dummy6',
-      patientName: 'Lisa Wilson',
-      patientAge: 41,
-      medications: [
-        { name: 'Levothyroxine', dosage: '75mcg', frequency: 'Once daily', duration: '90 days' }
-      ],
-      status: 'validated',
-      expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000),
-      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-      validatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      notes: 'Take on empty stomach, 1 hour before food.'
-    }
-  ];
+  // Toast management functions
+  const addToast = (message, type = 'info', description = null, duration = 4000) => {
+    const id = Date.now() + Math.random();
+    const newToast = { id, message, type, description, duration };
+    setToasts(prev => [...prev, newToast]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
   const [formData, setFormData] = useState({
     patientName: '',
     patientAge: '',
@@ -108,10 +39,7 @@ const Prescriptions = () => {
     notes: ''
   });
 
-  // Combine API data with dummy data for development
-  const allPrescriptions = [...prescriptions, ...dummyPrescriptions];
-
-  const filteredPrescriptions = allPrescriptions.filter(prescription => {
+  const filteredPrescriptions = prescriptions.filter(prescription => {
     const matchesSearch = prescription.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prescription.medications.some(med => 
         med.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -124,15 +52,18 @@ const Prescriptions = () => {
 
   // Summary statistics
   const summary = {
-    total: allPrescriptions.length,
-    pending: allPrescriptions.filter(p => p.status === 'pending').length,
-    validated: allPrescriptions.filter(p => p.status === 'validated').length,
-    dispensed: allPrescriptions.filter(p => p.status === 'dispensed').length,
-    cancelled: allPrescriptions.filter(p => p.status === 'cancelled').length,
-    expired: allPrescriptions.filter(p => p.status === 'expired').length,
+    total: prescriptions.length,
+    pending: prescriptions.filter(p => p.status === 'pending').length,
+    validated: prescriptions.filter(p => p.status === 'validated').length,
+    dispensed: prescriptions.filter(p => p.status === 'dispensed').length,
+    cancelled: prescriptions.filter(p => p.status === 'cancelled').length,
+    expired: prescriptions.filter(p => p.status === 'expired').length,
   };
 
   const handleValidate = async (prescriptionId) => {
+    // Show running check toast
+    addToast('Running validation checks...', 'info');
+    
     try {
       await axiosInstance.put(`/api/prescriptions/${prescriptionId}/validate`, {}, {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -143,9 +74,11 @@ const Prescriptions = () => {
           ? { ...p, status: 'validated', validatedAt: new Date() }
           : p
       ));
-      alert('Prescription validated!');
+      
+      addToast('Prescription validated successfully!', 'success');
     } catch (error) {
-      alert('Error validating prescription');
+      const message = error.response?.data?.message || 'Error validating prescription';
+      addToast('Validation failed', 'error', message);
     }
   };
 
@@ -160,9 +93,10 @@ const Prescriptions = () => {
           ? { ...p, status: 'dispensed', dispensedAt: new Date() }
           : p
       ));
-      alert('Prescription dispensed!');
+      addToast('Prescription dispensed successfully!', 'success');
     } catch (error) {
-      alert('Error dispensing prescription');
+      const message = error.response?.data?.message || 'Error dispensing prescription';
+      addToast('Failed to dispense prescription', 'error', message);
     }
   };
 
@@ -178,12 +112,14 @@ const Prescriptions = () => {
             ? { ...p, status: 'cancelled', cancelledAt: new Date() }
             : p
         ));
-        alert('Prescription cancelled!');
+        addToast('Prescription cancelled successfully!', 'success');
       } catch (error) {
-        alert('Error cancelling prescription');
+        const message = error.response?.data?.message || 'Error cancelling prescription';
+        addToast('Failed to cancel prescription', 'error', message);
       }
     }
   };
+
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -247,8 +183,10 @@ const Prescriptions = () => {
           frequency: med.frequency,
           duration: med.duration
         })),
-        notes: `Doctor: ${formData.doctorName} (${formData.doctorId}), Prescription ID: ${formData.prescriptionId}. ${formData.notes}`.trim()
+        notes: formData.notes
       };
+
+      console.log('Creating prescription with data:', prescriptionData);
 
       const response = await axiosInstance.post('/api/prescriptions', prescriptionData, {
         headers: { 
@@ -258,7 +196,7 @@ const Prescriptions = () => {
       });
 
       setPrescriptions([response.data, ...prescriptions]);
-      alert('Prescription added!');
+      addToast('Prescription added successfully!', 'success');
       setShowModal(false);
       setFormData({
         patientName: '',
@@ -275,7 +213,9 @@ const Prescriptions = () => {
         notes: ''
       });
     } catch (error) {
-      alert('Error adding prescription');
+      console.error('Error adding prescription:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error adding prescription';
+      addToast('Failed to add prescription', 'error', errorMessage);
     }
   };
 
@@ -286,7 +226,12 @@ const Prescriptions = () => {
 
   const handleUpdatePrescription = async (updatedData) => {
     try {
-      const response = await axiosInstance.put(`/api/prescriptions/${editingPrescription._id}`, updatedData, {
+      console.log('Updating prescription with data:', updatedData);
+      console.log('Prescription ID:', editingPrescription._id);
+      console.log('User token:', user.token ? 'Present' : 'Missing');
+      console.log('Full URL:', `/api/prescriptions/${editingPrescription._id}`);
+      
+      const response = await axiosInstance.put(`/api/prescriptions/${editingPrescription._id}/update`, updatedData, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       
@@ -295,14 +240,25 @@ const Prescriptions = () => {
       ));
       setShowEditModal(false);
       setEditingPrescription(null);
-      alert('Prescription updated successfully!');
+      addToast('Prescription updated successfully!', 'success');
     } catch (error) {
-      alert('Error updating prescription');
+      console.error('Full error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      if (error.response?.status === 404) {
+        console.error('404 Error - Prescription not found or route not found');
+        console.error('Attempted URL:', `/api/prescriptions/${editingPrescription._id}`);
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Error updating prescription';
+      addToast('Failed to update prescription', 'error', errorMessage);
     }
   };
 
   const canEditPrescription = (status) => {
-    return status === 'pending' || status === 'validated';
+    return status !== 'dispensed' && status !== 'cancelled'; // Cannot edit dispensed or cancelled prescriptions
   };
 
   useEffect(() => {
@@ -733,6 +689,9 @@ const Prescriptions = () => {
           onUpdate={handleUpdatePrescription}
         />
       )}
+      
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };
