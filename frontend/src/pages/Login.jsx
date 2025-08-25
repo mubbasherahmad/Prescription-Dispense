@@ -24,7 +24,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">💊 PrescriptEase</h1>
-          <p className="text-gray-600 mt-2">Welcome back! Please sign in to your account.</p>
+          <p className="text-gray-600 mt-2">Welcome back! Please sign.</p>
         </div>
         
         <div className="bg-white p-8 rounded-lg border border-gray-200">
