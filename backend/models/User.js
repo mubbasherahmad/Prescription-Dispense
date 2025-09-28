@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
@@ -8,7 +7,7 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     university: { type: String },
     address: { type: String },
-    role: { type: String, enum: ['admin', 'user'], default: 'user' }, // Add role field
+    role: { type: String, enum: ['admin', 'doctor', 'user'], default: 'user' }
 });
 
 userSchema.pre('save', async function (next) {
