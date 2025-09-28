@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Prescriptions from './pages/Prescriptions';
+import Appointments from './pages/Appointments';
+import Notifications from './pages/Notifications';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Prescriptions />} />
               <Route path="/prescriptions" element={<Prescriptions />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/profile" element={<Profile />} />
             </Routes>
           </Layout>
