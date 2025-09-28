@@ -4,13 +4,18 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Prescriptions from './pages/Prescriptions';
+ landing-page
+import LandingPage from './pages/LandingPage';
+
 import Appointments from './pages/Appointments';
 import Notifications from './pages/Notifications';
+ main
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/LandingPage" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/*" element={
