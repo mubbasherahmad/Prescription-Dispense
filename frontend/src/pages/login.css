@@ -1,0 +1,168 @@
+/* Login Component Styles */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  padding: 48px;
+  border-radius: 12px;
+
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+/* Header Styles */
+.login-header {
+  margin-bottom: 32px;
+}
+
+.login-logo {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+}
+
+.logo-highlight {
+  color: #2196F3;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+/* Form Styles */
+.login-form {
+  text-align: left;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: white;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Password Input Container */
+.password-input-container {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.password-toggle:hover {
+  color: #2196F3;
+}
+
+/* Button Styles */
+.login-button {
+  width: 100%;
+  background-color: #2196F3;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 8px;
+}
+
+.login-button:hover {
+  background-color: #1976D2;
+}
+
+.login-button:active {
+  transform: translateY(1px);
+}
+
+/* Footer Styles */
+.login-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.signup-text {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.signup-link {
+  color: #2196F3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 24px;
+  }
+  
+  .login-logo {
+    font-size: 24px;
+  }
+  
+  .login-title {
+    font-size: 20px;
+  }
+}
