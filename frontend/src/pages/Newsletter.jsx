@@ -1,14 +1,14 @@
 import React, { useState } from "react";
-import LandingPage from "./LandingPage.css";
+import "./LandingPage.css";
 
-const Newsletter = () => {
+const Newsletter = ({ id }) => {
   return (
-    <section className="newsletter">
+    <section className="newsletter" id={id}>
       <div className="newsletter-content">
         <h4>Subscribe to our news letter to get latest updates and news.</h4>
         <form className="subscribe-form">
           <input type="email" placeholder="Enter Your Email" required />
-          <button type="submit">Log In</button>
+          <button type="submit">Subscribe</button> {/* Changed from "Log In" to "Subscribe" */}
         </form>
       </div>
     </section>

@@ -1,27 +1,31 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Prescriptions from './pages/Prescriptions';
- landing-page
 import LandingPage from './pages/LandingPage';
-
 import Appointments from './pages/Appointments';
 import Notifications from './pages/Notifications';
- main
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/LandingPage" element={<LandingPage />} />
+        {/* Redirect root to login page */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
+        {/* Landing Page - accessible after login */}
+        <Route path="/landing" element={<LandingPage />} />
+        
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        
+        {/* Protected Routes with Layout */}
         <Route path="/*" element={
           <Layout>
             <Routes>
-              <Route path="/" element={<Prescriptions />} />
               <Route path="/prescriptions" element={<Prescriptions />} />
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/notifications" element={<Notifications />} />

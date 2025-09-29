@@ -1,5 +1,3 @@
-
-
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -16,7 +14,7 @@ const Login = () => {
     try {
       const response = await axiosInstance.post('/api/auth/login', formData);
       login(response.data);
-      navigate('/prescriptions');
+      navigate('/landing'); // Redirect to landing page after login
     } catch (error) {
       alert('Login failed. Please try again.');
     }

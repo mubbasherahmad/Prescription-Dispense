@@ -4,14 +4,15 @@ import Feature from "./Feature";
 import Newsletter from "./Newsletter";
 import Footer from "./Footer";
 import InfoCard from "./InfoCard";
-const LandingPage=()=>{
+
+const LandingPage = () => {
     return(
         <div>
             <Navbar/>
-            <HeroSection/>
-<InfoCard/>
-            <Feature/>
-            <Newsletter/>
+            <HeroSection id="home"/>
+            <InfoCard id="about"/>
+            <Feature id="features"/>
+            <Newsletter id="contact"/>
             <Footer/>
         </div>
     )

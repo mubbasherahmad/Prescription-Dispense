@@ -1,7 +1,7 @@
 import React from "react";
-import LandingPage from "./LandingPage.css";
+import "./LandingPage.css";
 
-const Features = () => {
+const Features = ({ id }) => {
   const featureData = [
     {
       title: "Prescription Digitalization",
@@ -18,7 +18,7 @@ const Features = () => {
   ];
 
   return (
-    <section className="features">
+    <section className="features" id={id}>
       <h3>Our Main Features</h3>
       <div className="feature-cards">
         {featureData.map((f, i) => (

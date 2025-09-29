@@ -1,10 +1,8 @@
 import React from 'react';
-import LandingPage from './LandingPage';
 
-
-const InfoCard = () => {
+const InfoCard = ({ id }) => {
   return (
-    <div className="info-card">
+    <div className="info-card" id={id}>
       <div className="info-content">
         <div className="info-text">
           <h3>Transforming Healthcare Communication</h3>

@@ -1,6 +1,11 @@
 import React from 'react';
-import LandingPage from "./LandingPage.css";
+import "./LandingPage.css";
+
 const Footer = () => {
+  const scrollToSection = (sectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <footer className="footer">
       <div className="footer-container">
@@ -15,10 +20,10 @@ const Footer = () => {
           </div>
           
           <nav className="footer-nav">
-            <a href="#home" className="footer-link">Home</a>
-            <a href="#about" className="footer-link">About</a>
-            <a href="#prescriptions" className="footer-link">Prescriptions</a>
-            <a href="#contact" className="footer-link">Contact</a>
+            <a href="#home" className="footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>Home</a>
+            <a href="#about" className="footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>About</a>
+            <a href="#features" className="footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}>Features</a>
+            <a href="#contact" className="footer-link" onClick={(e) => { e.preventDefault(); scrollToSection('contact'); }}>Contact</a>
           </nav>
         </div>
         

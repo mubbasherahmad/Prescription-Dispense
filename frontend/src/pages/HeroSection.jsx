@@ -1,9 +1,9 @@
 import React from "react";
-import LandingPage from "./LandingPage.css";
+import "./LandingPage.css";
 
-const HeroSection = () => {
+const HeroSection = ({ id }) => {
   return (
-    <section className="hero">
+    <section className="hero" id={id}>
       <div className="hero-text">
         <h2>Streamline Prescription Management with Precision</h2>
         <p>
