@@ -27,7 +27,7 @@ const Navbar = () => {
       case 'Prescriptions':
         // If user is logged in, go to prescriptions, else go to login
         if (user) {
-          navigate('/prescriptions');
+          navigate('/PrescriptionMain');
         } else {
           navigate('/login');
         }

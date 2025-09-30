@@ -54,7 +54,7 @@ const Navbar = () => {
           <div className="flex items-center space-x-4">
             {/* Navigation Links */}
             <Link
-              to="/prescriptions"
+              to="/PrescriptionMain"
               className={`px-3 py-2 rounded-md transition-colors ${
                 isActive('/prescriptions')
                   ? 'bg-blue-700 text-white'
