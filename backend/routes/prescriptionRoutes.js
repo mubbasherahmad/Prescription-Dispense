@@ -16,7 +16,7 @@ router.route('/:id/dispense')
 router.route('/:id/cancel')
   .put(protect, cancelPrescription);
 
-router.route('/:id/update')
+router.route('/:id')
   .put(protect, updatePrescription);
 
 // Test route to debug

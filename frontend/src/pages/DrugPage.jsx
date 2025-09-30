@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Search, Bell, Filter, Home, FileText, CheckSquare, Package, Pill } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 import ToastContainer from '../components/ToastContainer';
@@ -90,27 +89,27 @@ const DrugPage = () => {
 
         <nav className="flex-1 px-4">
           <NavLink to="/" className={navClass}>
-            <Home size={20} />
+            <span>🏠</span>
             <span>Home</span>
           </NavLink>
 
           <NavLink to="/PrescriptionMain" className={navClass}>
-            <FileText size={20} />
+            <span>📄</span>
             <span>Prescriptions</span>
           </NavLink>
 
           <NavLink to="/validation-queue" className={navClass}>
-            <CheckSquare size={20} />
+            <span>✅</span>
             <span>Validation Queue</span>
           </NavLink>
 
           <NavLink to="/dispensations" className={navClass}>
-            <Package size={20} />
+            <span>📦</span>
             <span>Dispensations</span>
           </NavLink>
 
           <NavLink to="/drug-inventory" className={navClass}>
-            <Pill size={20} />
+            <span>💊</span>
             <span>Drug Inventory</span>
           </NavLink>
         </nav>
@@ -130,7 +129,7 @@ const DrugPage = () => {
           <h2 className="text-xl font-semibold text-gray-700">DRUG INVENTORY</h2>
           <div className="flex items-center gap-4">
             <button className="relative p-2 hover:bg-gray-100 rounded-lg">
-              <Bell size={20} className="text-gray-600" />
+              <span>🔔</span>
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
@@ -149,7 +148,7 @@ const DrugPage = () => {
             </button>
             <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2">
               <span>Filter</span>
-              <Filter size={16} />
+              <span>🔻</span>
             </button>
           </div>
 
@@ -162,7 +161,7 @@ const DrugPage = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <Search className="absolute right-3 top-2.5 text-gray-400" size={20} />
+              <span className="absolute right-3 top-2.5 text-gray-400">🔍</span>
             </div>
 
             <button

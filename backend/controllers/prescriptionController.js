@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Prescription = require('../models/Prescription');
+const { createNotification } = require('./notificationController');
 
 // @desc    Create a new prescription
 // @route   POST /api/prescriptions
@@ -28,6 +29,17 @@ const createPrescription = asyncHandler(async (req, res) => {
   console.log('Saving prescription...');
   const createdPrescription = await prescription.save();
   console.log('Prescription created successfully:', createdPrescription._id);
+
+  // Create notification for new prescription
+  await createNotification(
+    req.user._id,
+    'New Prescription Created',
+    `New prescription created for ${createdPrescription.patientName}`,
+    'prescription',
+    createdPrescription._id
+  );
+
+  console.log('Notification created for new prescription');
   return res.status(201).json(createdPrescription);
 });
 
@@ -62,6 +74,16 @@ const validatePrescription = asyncHandler(async (req, res) => {
   prescription.validatedAt = new Date();
   await prescription.save();
 
+  // Create notification for validation
+  await createNotification(
+    req.user._id,
+    'Prescription Validated',
+    `Prescription for ${prescription.patientName} has been validated and is ready for dispensing`,
+    'prescription',
+    prescription._id
+  );
+
+  console.log('Notification created for prescription validation');
   return res.json(prescription);
 });
 
@@ -87,6 +109,16 @@ const dispensePrescription = asyncHandler(async (req, res) => {
   prescription.dispensedAt = new Date();
   await prescription.save();
 
+  // Create notification for dispensing
+  await createNotification(
+    req.user._id,
+    'Prescription Dispensed',
+    `Prescription for ${prescription.patientName} has been dispensed successfully`,
+    'prescription',
+    prescription._id
+  );
+
+  console.log('Notification created for prescription dispensing');
   return res.json(prescription);
 });
 
@@ -137,6 +169,17 @@ const updatePrescription = asyncHandler(async (req, res) => {
   console.log('Saving prescription...');
   const updatedPrescription = await prescription.save();
   console.log('Prescription saved successfully');
+
+  // Create notification for prescription update
+  await createNotification(
+    req.user._id,
+    'Prescription Updated',
+    `Prescription for ${prescription.patientName} has been updated`,
+    'prescription',
+    prescription._id
+  );
+
+  console.log('Notification created for prescription update');
   return res.json(updatedPrescription);
 });
 
@@ -169,6 +212,16 @@ const cancelPrescription = asyncHandler(async (req, res) => {
   prescription.cancelledAt = new Date();
   await prescription.save();
 
+  // Create notification for cancellation
+  await createNotification(
+    req.user._id,
+    'Prescription Cancelled',
+    `Prescription for ${prescription.patientName} has been cancelled`,
+    'prescription',
+    prescription._id
+  );
+
+  console.log('Notification created for prescription cancellation');
   return res.json(prescription);
 });
 

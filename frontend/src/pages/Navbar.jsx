@@ -25,12 +25,7 @@ const Navbar = () => {
         document.querySelector('.info-card')?.scrollIntoView({ behavior: 'smooth' });
         break;
       case 'Prescriptions':
-        // If user is logged in, go to prescriptions, else go to login
-        if (user) {
-          navigate('/PrescriptionMain');
-        } else {
-          navigate('/login');
-        }
+        navigate('/prescriptions');   // ✅ lowercase route
         break;
       case 'Contact':
         document.querySelector('.newsletter')?.scrollIntoView({ behavior: 'smooth' });
