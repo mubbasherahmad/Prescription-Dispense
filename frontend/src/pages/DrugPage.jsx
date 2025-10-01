@@ -10,6 +10,7 @@ const DrugPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [formData, setFormData] = useState({
     medicineName: '',
     medicineId: '',
@@ -23,6 +24,20 @@ const DrugPage = () => {
     setToasts(prev => [...prev, { id, message, type, description, duration }]);
   };
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const response = await axiosInstance.get('/api/notifications', {
+        headers: { Authorization: `Bearer ${user?.token}` }
+      });
+      if (response.data) {
+        setNotifications(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   const filteredDrugs = drugs.filter(drug =>
     drug.medicineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -49,6 +64,11 @@ const DrugPage = () => {
       });
 
       setDrugs([response.data, ...drugs]);
+      
+      // Refresh notifications after drug is added
+      // The backend will automatically create a global notification
+      fetchNotifications();
+
       addToast('Drug added successfully!', 'success');
       setShowModal(false);
       setFormData({ medicineName: '', medicineId: '', groupName: '', stock: '' });
@@ -56,6 +76,11 @@ const DrugPage = () => {
       const errorMessage = error.response?.data?.message || error.message || 'Error adding drug';
       addToast('Failed to add drug', 'error', errorMessage);
     }
+  };
+
+  // Get unread notifications count
+  const getUnreadNotificationsCount = () => {
+    return notifications.filter(n => !n.isRead).length;
   };
 
   useEffect(() => {
@@ -69,7 +94,11 @@ const DrugPage = () => {
         console.error('Error fetching drugs:', error);
       }
     };
-    if (user) fetchDrugs();
+    
+    if (user) {
+      fetchDrugs();
+      fetchNotifications();
+    }
   }, [user]);
 
   const navClass = ({ isActive }) =>
@@ -79,7 +108,7 @@ const DrugPage = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar - Only Drug Inventory */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6">
           <h1 className="text-2xl font-semibold">
@@ -88,29 +117,21 @@ const DrugPage = () => {
         </div>
 
         <nav className="flex-1 px-4">
-          <NavLink to="/" className={navClass}>
-            <span>🏠</span>
-            <span>Home</span>
-          </NavLink>
-
-          <NavLink to="/PrescriptionMain" className={navClass}>
-            <span>📄</span>
-            <span>Prescriptions</span>
-          </NavLink>
-
-          <NavLink to="/validation-queue" className={navClass}>
-            <span>✅</span>
-            <span>Validation Queue</span>
-          </NavLink>
-
-          <NavLink to="/dispensations" className={navClass}>
-            <span>📦</span>
-            <span>Dispensations</span>
-          </NavLink>
-
+          {/* Only Drug Inventory link in sidebar */}
           <NavLink to="/drug-inventory" className={navClass}>
             <span>💊</span>
             <span>Drug Inventory</span>
+          </NavLink>
+
+          {/* Notifications Link */}
+          <NavLink to="/notifications" className={navClass}>
+            <span>🔔</span>
+            <span>Notifications</span>
+            {getUnreadNotificationsCount() > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center ml-auto">
+                {getUnreadNotificationsCount()}
+              </span>
+            )}
           </NavLink>
         </nav>
 
@@ -128,14 +149,23 @@ const DrugPage = () => {
         <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-700">DRUG INVENTORY</h2>
           <div className="flex items-center gap-4">
-            <button className="relative p-2 hover:bg-gray-100 rounded-lg">
+            <NavLink to="/notifications" className="relative p-2 hover:bg-gray-100 rounded-lg">
               <span>🔔</span>
-            </button>
+              {getUnreadNotificationsCount() > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {getUnreadNotificationsCount()}
+                </span>
+              )}
+            </NavLink>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold">M</span>
+                <span className="text-sm font-semibold">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                </span>
               </div>
-              <span className="text-gray-700">Marlene</span>
+              <span className="text-gray-700">
+                {user?.name || 'Admin'} {user?.role === 'admin' && '(Admin)'}
+              </span>
             </div>
           </div>
         </div>
@@ -156,7 +186,7 @@ const DrugPage = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search for..."
+                placeholder="Search for medicine name, ID, or group..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-4 pr-10 py-2 border border-gray-300 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -200,10 +230,20 @@ const DrugPage = () => {
                     <td className="py-4 px-4">
                       <input type="checkbox" className="w-4 h-4" />
                     </td>
-                    <td className="py-4 px-4 text-gray-800">{drug.medicineName}</td>
+                    <td className="py-4 px-4 text-gray-800 font-medium">{drug.medicineName}</td>
                     <td className="py-4 px-4 text-gray-800">{drug.medicineId}</td>
                     <td className="py-4 px-4 text-gray-800">{drug.groupName}</td>
-                    <td className="py-4 px-4 text-gray-800">{drug.stock}</td>
+                    <td className="py-4 px-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        drug.stock > 20 
+                          ? 'bg-green-100 text-green-800' 
+                          : drug.stock > 10 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {drug.stock} units
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -217,10 +257,10 @@ const DrugPage = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Add Drug</h2>
+              <h2 className="text-xl font-bold text-gray-900">Add New Drug</h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 text-xl"
               >
                 ✕
               </button>
@@ -267,7 +307,7 @@ const DrugPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Initial Stock *</label>
                 <input
                   type="number"
                   name="stock"
@@ -283,14 +323,14 @@ const DrugPage = () => {
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition duration-200"
                 >
                   Add Drug
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg font-medium"
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg font-medium transition duration-200"
                 >
                   Cancel
                 </button>

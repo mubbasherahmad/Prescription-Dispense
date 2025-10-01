@@ -19,6 +19,30 @@ const MedicationSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Duration is required'],
     },
+    // Add these new fields for inventory tracking
+    drugId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Drug'
+    },
+    stockChecked: {
+      type: Boolean,
+      default: false
+    },
+    stockAvailable: {
+      type: Boolean,
+      default: false
+    },
+    requiredQuantity: {
+      type: Number,
+      default: 0
+    },
+    availableStock: {
+      type: Number,
+      default: 0
+    },
+    inventoryError: {
+      type: String
+    }
   },
   { _id: false }
 );
@@ -73,6 +97,11 @@ const PrescriptionSchema = new mongoose.Schema(
     },
     cancelledAt: {
       type: Date
+    },
+    // Track inventory status
+    allMedicationsAvailable: {
+      type: Boolean,
+      default: false
     }
   },
   {
