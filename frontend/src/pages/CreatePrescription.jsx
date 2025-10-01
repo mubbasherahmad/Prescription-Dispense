@@ -12,6 +12,7 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
+  const [medicationStatus, setMedicationStatus] = useState({});
   const backdropRef = useRef(null);
 
   // Close on ESC
@@ -36,6 +37,155 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
   const removeMedication = (index) => {
     if (medications.length > 1) {
       setMedications(prev => prev.filter((_, i) => i !== index));
+      // Remove status for deleted medication
+      setMedicationStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[index];
+        return newStatus;
+      });
+    }
+  };
+
+  // Check medication availability when name or dosage changes
+  useEffect(() => {
+    const checkMedicationAvailability = async () => {
+      const newStatus = { ...medicationStatus };
+      
+      for (let i = 0; i < medications.length; i++) {
+        const med = medications[i];
+        if (med.name.trim() && med.dosage.trim()) {
+          try {
+            const response = await fetch(`${API_BASE_URL}/drugs/check-availability`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({
+                name: med.name,
+                dosage: med.dosage
+              })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              newStatus[i] = {
+                available: data.available,
+                message: data.message,
+                stock: data.stock,
+                required: data.required
+              };
+            } else {
+              newStatus[i] = {
+                available: false,
+                message: 'Error checking availability',
+                stock: 0,
+                required: 0
+              };
+            }
+          } catch (error) {
+            newStatus[i] = {
+              available: false,
+              message: 'Error checking availability',
+              stock: 0,
+              required: 0
+            };
+          }
+        } else {
+          newStatus[i] = null;
+        }
+      }
+      
+      setMedicationStatus(newStatus);
+    };
+
+    // Add a small delay to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      checkMedicationAvailability();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [medications]);
+
+  const getMedicationStatusIcon = (index) => {
+    const status = medicationStatus[index];
+    if (!status) return null;
+    
+    if (status.available) {
+      return (
+        <span className="text-green-600 text-sm flex items-center gap-1">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          Available ({status.stock} in stock)
+        </span>
+      );
+    } else {
+      return (
+        <span className="text-red-600 text-sm flex items-center gap-1">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+          {status.message}
+        </span>
+      );
+    }
+  };
+
+  const getOverallAvailabilityStatus = () => {
+    const allChecked = medications.every((med, index) => 
+      medicationStatus[index] !== undefined && medicationStatus[index] !== null
+    );
+    
+    if (!allChecked) return null;
+
+    const allAvailable = medications.every((med, index) => 
+      medicationStatus[index]?.available === true
+    );
+
+    const someAvailable = medications.some((med, index) => 
+      medicationStatus[index]?.available === true
+    );
+
+    if (allAvailable) {
+      return (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-green-800">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">All medications are available in inventory</span>
+          </div>
+        </div>
+      );
+    } else if (someAvailable) {
+      return (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-yellow-800">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">Some medications may not be available</span>
+          </div>
+          <p className="text-yellow-700 text-sm mt-1">
+            You can still create the prescription, but it cannot be dispensed until all medications are available.
+          </p>
+        </div>
+      );
+    } else {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-red-800">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">No medications available in inventory</span>
+          </div>
+          <p className="text-red-700 text-sm mt-1">
+            This prescription cannot be dispensed. Please check with the pharmacy.
+          </p>
+        </div>
+      );
     }
   };
 
@@ -168,9 +318,14 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
             {/* Medications Section */}
             <div>
               <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Medications *
-                </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Medications *
+                  </label>
+                  <p className="text-sm text-gray-500 mt-1">
+                    System will automatically check drug inventory availability
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={addMedication}
@@ -179,17 +334,23 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
                   + Add Medication
                 </button>
               </div>
+
+              {/* Overall Availability Status */}
+              {getOverallAvailabilityStatus()}
               
               <div className="space-y-4">
                 {medications.map((medication, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <div className="flex justify-between items-start mb-3">
-                      <h4 className="text-sm font-medium text-gray-700">Medication #{index + 1}</h4>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-gray-700">Medication #{index + 1}</h4>
+                        {getMedicationStatusIcon(index)}
+                      </div>
                       {medications.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeMedication(index)}
-                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ml-2"
                         >
                           Remove
                         </button>
@@ -197,40 +358,49 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
                     </div>
                     
                     <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Medication Name *"
-                        value={medication.name}
-                        onChange={(e) => updateMedication(index, 'name', e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Medication Name * (e.g., Paracetamol, Amoxicillin)"
+                          value={medication.name}
+                          onChange={(e) => updateMedication(index, 'name', e.target.value)}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <input
-                          type="text"
-                          placeholder="Dosage *"
-                          value={medication.dosage}
-                          onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
-                          required
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Frequency *"
-                          value={medication.frequency}
-                          onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
-                          required
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Duration *"
-                          value={medication.duration}
-                          onChange={(e) => updateMedication(index, 'duration', e.target.value)}
-                          required
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Dosage * (e.g., 10 tablets)"
+                            value={medication.dosage}
+                            onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Include quantity (e.g., 10 tablets, 5mg, 100ml)</p>
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Frequency * (e.g., 3 times daily)"
+                            value={medication.frequency}
+                            onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Duration * (e.g., 7 days)"
+                            value={medication.duration}
+                            onChange={(e) => updateMedication(index, 'duration', e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

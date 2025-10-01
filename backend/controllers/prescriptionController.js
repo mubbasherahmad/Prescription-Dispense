@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Prescription = require('../models/Prescription');
 const { createNotification } = require('./notificationController');
+const { checkMedicationAvailability, deductMedicationStock } = require('../utils/drugInventory');
 
 // @desc    Create a new prescription
 // @route   POST /api/prescriptions
@@ -18,29 +19,46 @@ const createPrescription = asyncHandler(async (req, res) => {
 
   console.log('Creating prescription with data:', { patientName, patientAge, medications, notes });
 
-  const prescription = new Prescription({
-    user: req.user._id,
-    patientName,
-    patientAge,
-    medications,
-    notes,
-  });
+  try {
+    // Check medication availability in inventory
+    const medicationsWithInventory = await checkMedicationAvailability(medications);
+    
+    // Check if all medications are available
+    const allMedicationsAvailable = medicationsWithInventory.every(med => med.stockAvailable);
+    
+    const prescription = new Prescription({
+      user: req.user._id,
+      patientName,
+      patientAge,
+      medications: medicationsWithInventory,
+      notes,
+      allMedicationsAvailable
+    });
 
-  console.log('Saving prescription...');
-  const createdPrescription = await prescription.save();
-  console.log('Prescription created successfully:', createdPrescription._id);
+    console.log('Saving prescription...');
+    const createdPrescription = await prescription.save();
+    console.log('Prescription created successfully:', createdPrescription._id);
 
-  // Create notification for new prescription
-  await createNotification(
-    req.user._id,
-    'New Prescription Created',
-    `New prescription created for ${createdPrescription.patientName}`,
-    'prescription',
-    createdPrescription._id
-  );
+    // Create notification for new prescription
+    await createNotification(
+      req.user._id,
+      'New Prescription Created',
+      `New prescription created for ${createdPrescription.patientName}` +
+      (allMedicationsAvailable ? ' - All medications available in inventory' : ' - Some medications may not be available'),
+      'prescription',
+      createdPrescription._id
+    );
 
-  console.log('Notification created for new prescription');
-  return res.status(201).json(createdPrescription);
+    console.log('📢 NOTIFICATION: New Prescription Created for', createdPrescription.patientName);
+    console.log('💊 Prescription ID:', createdPrescription._id);
+    console.log('👤 Created by user:', req.user._id);
+    console.log('📊 All medications available:', allMedicationsAvailable);
+
+    return res.status(201).json(createdPrescription);
+  } catch (error) {
+    console.error('Error creating prescription:', error);
+    return res.status(400).json({ message: error.message });
+  }
 });
 
 // @desc    List prescriptions for logged in user
@@ -69,7 +87,21 @@ const validatePrescription = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cannot validate cancelled prescription' });
   }
 
-  // Simple validation - just check if not expired and not cancelled
+  // Check if all medications are available before validation
+  const unavailableMedications = prescription.medications.filter(med => 
+    med.stockChecked && !med.stockAvailable
+  );
+
+  if (unavailableMedications.length > 0) {
+    return res.status(400).json({ 
+      message: 'Cannot validate prescription - some medications are not available in inventory',
+      unavailableMedications: unavailableMedications.map(med => ({
+        name: med.name,
+        error: med.inventoryError
+      }))
+    });
+  }
+
   prescription.status = 'validated';
   prescription.validatedAt = new Date();
   await prescription.save();
@@ -87,7 +119,7 @@ const validatePrescription = asyncHandler(async (req, res) => {
   return res.json(prescription);
 });
 
-// @desc    Dispense a prescription
+// @desc    Dispense a prescription and deduct stock
 // @route   PUT /api/prescriptions/:id/dispense
 // @access  Private
 const dispensePrescription = asyncHandler(async (req, res) => {
@@ -105,21 +137,62 @@ const dispensePrescription = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cannot dispense a cancelled prescription' });
   }
 
-  prescription.status = 'dispensed';
-  prescription.dispensedAt = new Date();
-  await prescription.save();
+  try {
+    // Check if all medications are available before dispensing
+    const unavailableMedications = prescription.medications.filter(med => 
+      med.stockChecked && !med.stockAvailable
+    );
 
-  // Create notification for dispensing
-  await createNotification(
-    req.user._id,
-    'Prescription Dispensed',
-    `Prescription for ${prescription.patientName} has been dispensed successfully`,
-    'prescription',
-    prescription._id
-  );
+    if (unavailableMedications.length > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot dispense prescription - some medications are not available in inventory',
+        unavailableMedications: unavailableMedications.map(med => ({
+          name: med.name,
+          error: med.inventoryError
+        }))
+      });
+    }
 
-  console.log('Notification created for prescription dispensing');
-  return res.json(prescription);
+    // Deduct stock from inventory
+    const stockDeductionResults = await deductMedicationStock(prescription.medications);
+    
+    // Check if all stock deductions were successful
+    const failedDeductions = stockDeductionResults.filter(result => !result.success);
+    
+    if (failedDeductions.length > 0) {
+      return res.status(400).json({
+        message: 'Failed to deduct stock for some medications',
+        failedDeductions
+      });
+    }
+
+    // Update prescription status
+    prescription.status = 'dispensed';
+    prescription.dispensedAt = new Date();
+    await prescription.save();
+
+    // Create notification for dispensing
+    await createNotification(
+      req.user._id,
+      'Prescription Dispensed',
+      `Prescription for ${prescription.patientName} has been dispensed successfully. Stock deducted from inventory.`,
+      'prescription',
+      prescription._id
+    );
+
+    console.log('📦 NOTIFICATION: Prescription Dispensed for', prescription.patientName);
+    console.log('💊 Prescription ID:', prescription._id);
+    console.log('👤 Dispensed by user:', req.user._id);
+    console.log('📊 Stock deduction results:', stockDeductionResults);
+
+    return res.json({
+      prescription,
+      stockDeductionResults
+    });
+  } catch (error) {
+    console.error('Error dispensing prescription:', error);
+    return res.status(400).json({ message: error.message });
+  }
 });
 
 // @desc    Update a prescription
@@ -159,7 +232,12 @@ const updatePrescription = asyncHandler(async (req, res) => {
   }
 
   if (medications && Array.isArray(medications) && medications.length > 0) {
-    prescription.medications = medications;
+    // Re-check medication availability when medications are updated
+    const medicationsWithInventory = await checkMedicationAvailability(medications);
+    const allMedicationsAvailable = medicationsWithInventory.every(med => med.stockAvailable);
+    
+    prescription.medications = medicationsWithInventory;
+    prescription.allMedicationsAvailable = allMedicationsAvailable;
   }
 
   if (notes !== undefined) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import CreatePrescriptionModal from './CreatePrescription';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
@@ -14,8 +15,9 @@ export default function PrescriptionMain() {
   const [activeFilter, setActiveFilter] = useState('all');
   
   const location = useLocation();
+  const { user, logout } = useAuth();
 
-  // Fetch prescriptions from your backend
+  // Fetch prescriptions from backend
   const fetchPrescriptions = async () => {
     try {
       setLoading(true);
@@ -31,9 +33,7 @@ export default function PrescriptionMain() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          logout();
           return;
         }
         throw new Error('Failed to fetch prescriptions');
@@ -83,7 +83,7 @@ export default function PrescriptionMain() {
     }
   }, [location.pathname]);
 
-  // Validate prescription - UPDATED
+  // Validate prescription
   const validatePrescription = async (id) => {
     try {
       const token = localStorage.getItem('token');
@@ -96,7 +96,8 @@ export default function PrescriptionMain() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to validate prescription');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to validate prescription');
       }
 
       const updatedPrescription = await response.json();
@@ -106,16 +107,14 @@ export default function PrescriptionMain() {
         )
       );
 
-      // Refresh notifications after validation
       fetchNotifications();
-
     } catch (err) {
       setError(err.message);
       console.error('Error validating prescription:', err);
     }
   };
 
-  // Dispense prescription - UPDATED
+  // Dispense prescription
   const dispensePrescription = async (id) => {
     try {
       const token = localStorage.getItem('token');
@@ -128,26 +127,25 @@ export default function PrescriptionMain() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to dispense prescription');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to dispense prescription');
       }
 
-      const updatedPrescription = await response.json();
+      const result = await response.json();
       setPrescriptions(prev => 
         prev.map(prescription => 
-          prescription._id === id ? updatedPrescription : prescription
+          prescription._id === id ? result.prescription : prescription
         )
       );
 
-      // Refresh notifications after dispensing
       fetchNotifications();
-
     } catch (err) {
       setError(err.message);
       console.error('Error dispensing prescription:', err);
     }
   };
 
-  // Cancel prescription - UPDATED
+  // Cancel prescription
   const cancelPrescription = async (id) => {
     try {
       const token = localStorage.getItem('token');
@@ -170,28 +168,23 @@ export default function PrescriptionMain() {
         )
       );
 
-      // Refresh notifications after cancellation
       fetchNotifications();
-
     } catch (err) {
       setError(err.message);
       console.error('Error canceling prescription:', err);
     }
   };
 
-  // Handle prescription created from modal - UPDATED
+  // Handle prescription created from modal
   const handlePrescriptionCreated = (newPrescription) => {
     setPrescriptions(prev => [...prev, newPrescription]);
     setShowCreateModal(false);
-    // Refresh notifications after creating prescription
     fetchNotifications();
   };
 
   // Handle logout
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    logout();
   };
 
   // Filter prescriptions based on active filter and search term
@@ -208,7 +201,6 @@ export default function PrescriptionMain() {
         break;
       case 'all':
       default:
-        // Show all prescriptions
         break;
     }
 
@@ -272,7 +264,11 @@ export default function PrescriptionMain() {
 
   // Format date
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   // Get unread notifications count
@@ -280,14 +276,14 @@ export default function PrescriptionMain() {
     return notifications.filter(n => !n.isRead).length;
   };
 
-  // Auto-refresh notifications every 30 seconds
+  // Auto-refresh data
   useEffect(() => {
     fetchPrescriptions();
     fetchNotifications();
 
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 30000); // Refresh every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -335,27 +331,35 @@ export default function PrescriptionMain() {
             <span>Home</span>
           </NavLink>
 
-          <NavLink to="/prescriptions" className={navClass}>
-            <span>📄</span>
-            <span>All Prescriptions</span>
-          </NavLink>
+          {/* Show prescription-related links only to regular users */}
+          {user?.role !== 'admin' && (
+            <>
+              <NavLink to="/prescriptions" className={navClass}>
+                <span>📄</span>
+                <span>All Prescriptions</span>
+              </NavLink>
 
-          <NavLink to="/validation-queue" className={navClass}>
-            <span>✅</span>
-            <span>Validation Queue</span>
-          </NavLink>
+              <NavLink to="/validation-queue" className={navClass}>
+                <span>✅</span>
+                <span>Validation Queue</span>
+              </NavLink>
 
-          <NavLink to="/dispensations" className={navClass}>
-            <span>📦</span>
-            <span>Dispensations</span>
-          </NavLink>
+              <NavLink to="/dispensations" className={navClass}>
+                <span>📦</span>
+                <span>Dispensations</span>
+              </NavLink>
+            </>
+          )}
 
-          <NavLink to="/drug-inventory" className={navClass}>
-            <span>💊</span>
-            <span>Drug Inventory</span>
-          </NavLink>
+          {/* Show drug inventory only to admin users */}
+          {user?.role === 'admin' && (
+            <NavLink to="/drug-inventory" className={navClass}>
+              <span>💊</span>
+              <span>Drug Inventory</span>
+            </NavLink>
+          )}
 
-          {/* Add Notifications Link */}
+          {/* Notifications visible to all users */}
           <NavLink to="/notifications" className={navClass}>
             <span>🔔</span>
             <span>Notifications</span>
@@ -385,10 +389,8 @@ export default function PrescriptionMain() {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-gray-700">{getPageTitle()}</h2>
             <div className="flex items-center gap-4">
-              {/* Make the bell icon clickable to navigate to notifications */}
               <NavLink to="/notifications" className="relative p-2 hover:bg-gray-100 rounded-lg">
                 <span>🔔</span>
-                {/* Show notification badge if there are unread notifications */}
                 {getUnreadNotificationsCount() > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                     {getUnreadNotificationsCount()}
@@ -397,10 +399,12 @@ export default function PrescriptionMain() {
               </NavLink>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">M</span>
+                  <span className="text-sm font-semibold">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
                 </div>
                 <span className="text-gray-700">
-                  {JSON.parse(localStorage.getItem('user'))?.name || 'User'}
+                  {user?.name || 'User'} {user?.role === 'admin' && '(Admin)'}
                 </span>
               </div>
             </div>
@@ -408,7 +412,7 @@ export default function PrescriptionMain() {
           <p className="text-gray-500 text-sm">{getPageDescription()}</p>
         </div>
 
-        {/* Toolbar */}
+        {/* Toolbar - Hide Create Prescription button for admin users */}
         <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
@@ -431,12 +435,16 @@ export default function PrescriptionMain() {
               />
               <span className="absolute right-3 top-2.5 text-gray-400">🔍</span>
             </div>
-            <button 
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
-            >
-              Create Prescription
-            </button>
+            
+            {/* Hide Create Prescription button for admin users */}
+            {user?.role !== 'admin' && (
+              <button 
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+              >
+                Create Prescription
+              </button>
+            )}
           </div>
         </div>
 
@@ -468,13 +476,40 @@ export default function PrescriptionMain() {
               <tbody>
                 {filteredPrescriptions.map((prescription) => (
                   <tr key={prescription._id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-4 px-4 text-gray-800">{prescription.patientName}</td>
-                    <td className="py-4 px-4 text-gray-800">{prescription.patientAge}</td>
+                    <td className="py-4 px-4 text-gray-800 font-medium">
+                      {prescription.patientName}
+                    </td>
+                    <td className="py-4 px-4 text-gray-800">
+                      {prescription.patientAge}
+                    </td>
                     <td className="py-4 px-4">
                       {prescription.medications?.map((med, index) => (
-                        <div key={index} className="text-gray-800">
-                          {med.name} {med.dosage && `- ${med.dosage}`}
-                          {med.frequency && ` (${med.frequency})`}
+                        <div key={index} className="mb-3 last:mb-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-800">{med.name}</span>
+                            {med.stockChecked && (
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  med.stockAvailable
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                                title={med.inventoryError || 'Available in inventory'}
+                              >
+                                {med.stockAvailable ? '✓ In Stock' : '✗ Out of Stock'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 ml-2">
+                            <div>Dosage: {med.dosage || 'Not specified'}</div>
+                            <div>Frequency: {med.frequency || 'Not specified'}</div>
+                            <div>Duration: {med.duration || 'Not specified'}</div>
+                          </div>
+                          {med.inventoryError && !med.stockAvailable && (
+                            <div className="text-xs text-red-600 ml-2 mt-1">
+                              {med.inventoryError}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </td>
@@ -531,8 +566,8 @@ export default function PrescriptionMain() {
         </div>
       </div>
 
-      {/* Create Prescription Modal */}
-      {showCreateModal && (
+      {/* Create Prescription Modal - Only show for regular users */}
+      {showCreateModal && user?.role !== 'admin' && (
         <CreatePrescriptionModal
           onClose={() => setShowCreateModal(false)}
           onCreated={handlePrescriptionCreated}

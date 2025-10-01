@@ -1,22 +1,32 @@
-
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 import './Register.css';
 
 const Register = () => {
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    password: '', 
+    confirmPassword: '',
+    role: 'user' 
+  });
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (formData.password !== formData.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
     try {
       await axiosInstance.post('/api/auth/register', formData);
       alert('Registration successful. Please log in.');
       navigate('/login');
     } catch (error) {
-      alert('Registration failed. Please try again.');
+      alert(error.response?.data?.message || 'Registration failed. Please try again.');
     }
   };
 
@@ -33,6 +43,18 @@ const Register = () => {
         
         <form onSubmit={handleSubmit} className="register-form">
           <div className="form-group">
+            <label className="form-label">Full Name*</label>
+            <input
+              type="text"
+              placeholder="Enter your full name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="form-input"
+              required
+            />
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Email*</label>
             <input
               type="email"
@@ -45,6 +67,19 @@ const Register = () => {
           </div>
           
           <div className="form-group">
+            <label className="form-label">Role*</label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="form-input"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          
+          <div className="form-group">
             <label className="form-label">Password*</label>
             <div className="password-input-container">
               <input
@@ -54,6 +89,7 @@ const Register = () => {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="form-input"
                 required
+                minLength="6"
               />
               <button type="button" className="password-toggle">
                 Unhide
@@ -66,11 +102,12 @@ const Register = () => {
             <div className="password-input-container">
               <input
                 type="password"
-                placeholder="Enter password"
+                placeholder="Confirm password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 className="form-input"
                 required
+                minLength="6"
               />
               <button type="button" className="password-toggle">
                 Unhide

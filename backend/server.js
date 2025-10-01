@@ -14,8 +14,8 @@ app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
-app.use('/api/appointments', require('./routes/appointmentRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/drugs', require('./routes/drugRoutes')); // Add drug routes
 
 // Error handling middleware
 app.use((err, req, res, next) => {
