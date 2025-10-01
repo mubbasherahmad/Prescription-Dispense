@@ -14,7 +14,7 @@ const Login = () => {
     try {
       const response = await axiosInstance.post('/api/auth/login', formData);
       login(response.data);
-      navigate('/landing'); // Redirect to landing page after login
+      navigate('/dashboard'); // Redirect to dashboard home page after login
     } catch (error) {
       alert('Login failed. Please try again.');
     }

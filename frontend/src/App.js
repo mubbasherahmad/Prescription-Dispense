@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import LandingPage from './pages/LandingPage';
+import Dashboard from './pages/Dashboard';
 import PrescriptionMain from './pages/PrescriptionMain';
 import DrugPage from './pages/DrugPage';
 import Notifications from './pages/Notifications';
@@ -17,6 +18,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/landing" element={<LandingPage />} />
+
+        {/* Dashboard home */}
+        <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Prescription routes - all use the same component with different filters */}
         <Route path="/prescriptions" element={<PrescriptionMain />} />

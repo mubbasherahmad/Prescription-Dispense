@@ -6,12 +6,19 @@ const { extractQuantityFromDosage } = require('../utils/drugInventory');
 // @access  Private/Admin
 const createDrug = async (req, res) => {
     try {
+        console.log('Creating drug - req.user:', req.user);
+        console.log('Creating drug - req.body:', req.body);
+
         const { medicineName, medicineId, groupName, stock } = req.body;
 
         // Check if drug with same medicineId already exists
         const drugExists = await Drug.findOne({ medicineId });
         if (drugExists) {
             return res.status(400).json({ message: 'Drug with this Medicine ID already exists' });
+        }
+
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: 'User not authenticated' });
         }
 
         const drug = await Drug.create({
@@ -24,6 +31,7 @@ const createDrug = async (req, res) => {
 
         res.status(201).json(drug);
     } catch (error) {
+        console.error('Error creating drug:', error);
         res.status(500).json({ message: error.message });
     }
 };
