@@ -2,12 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const db = require('./config/db');
+const MiddlewareFactory = require('./patterns/middleware/MiddlewareFactory');
 
 const app = express();
 
-// Middleware
+// Basic middleware
 app.use(cors());
 app.use(express.json());
+
+// Global logging middleware for all routes
+app.use(async (req, res, next) => {
+  const loggingMiddleware = new (require('./patterns/middleware/LoggingMiddleware'))();
+  await loggingMiddleware.handle(req, res, next);
+});
 
 // Test route
 app.get('/api/health', (req, res) => {
@@ -74,3 +81,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
