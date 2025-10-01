@@ -7,23 +7,23 @@ class RoleMiddleware extends BaseMiddleware {
     this.allowedRoles = allowedRoles;
   }
 
-  async handle(req, res) {
+  async handle(req, res, next) {
     if (!req.user) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Authentication required' 
+        message: 'Authentication required'
       });
     }
 
     if (!this.allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions' 
+        message: 'Insufficient permissions'
       });
     }
 
     // Pass to next middleware
-    return await super.handle(req, res);
+    return await super.handle(req, res, next);
   }
 }
 
