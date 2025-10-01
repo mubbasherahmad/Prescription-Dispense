@@ -1,26 +1,67 @@
 const express = require('express');
 const router = express.Router();
-const { createPrescription, listPrescriptions, validatePrescription, dispensePrescription, updatePrescription, cancelPrescription } = require('../controllers/prescriptionController');
-const { protect } = require('../middleware/authMiddleware');
+const { 
+  createPrescription, 
+  listPrescriptions, 
+  validatePrescription, 
+  dispensePrescription, 
+  updatePrescription, 
+  cancelPrescription 
+} = require('../controllers/prescriptionController');
+const MiddlewareFactory = require('../patterns/middleware/MiddlewareFactory');
 
-router.route('/')
-  .post(protect, createPrescription)
-  .get(protect, listPrescriptions);
+// Validation rules for prescriptions
+const prescriptionValidationRules = {
+  '/api/prescriptions': {
+    'POST': {
+      patientName: { required: true },
+      patientAge: { required: true, type: 'number' },
+      medications: { required: true }
+    }
+  }
+};
 
-router.route('/:id/validate')
-  .put(protect, validatePrescription);
+// Create prescription - with validation and auth
+router.post('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createFullChain(prescriptionValidationRules, ['admin', 'user']);
+  await middleware.handle(req, res, next);
+}, createPrescription);
 
-router.route('/:id/dispense')
-  .put(protect, dispensePrescription);
+// List prescriptions - auth only
+router.get('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, listPrescriptions);
 
-router.route('/:id/cancel')
-  .put(protect, cancelPrescription);
+// Validate prescription - auth only
+router.put('/:id/validate', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, validatePrescription);
 
-router.route('/:id')
-  .put(protect, updatePrescription);
+// Dispense prescription - auth only
+router.put('/:id/dispense', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, dispensePrescription);
 
-// Test route to debug
-router.get('/:id/test', protect, (req, res) => {
+// Cancel prescription - auth only
+router.put('/:id/cancel', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, cancelPrescription);
+
+// Update prescription - auth only
+router.put('/:id', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, updatePrescription);
+
+// Test route - with logging only
+router.get('/:id/test', async (req, res, next) => {
+  const loggingMiddleware = new (require('../patterns/middleware/LoggingMiddleware'))();
+  await loggingMiddleware.handle(req, res, next);
+}, (req, res) => {
   console.log('Test route hit for ID:', req.params.id);
   res.json({ message: 'Route working', id: req.params.id });
 });

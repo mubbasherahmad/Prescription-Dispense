@@ -6,10 +6,24 @@ const {
   markAsRead,
   deleteNotification
 } = require('../controllers/notificationController');
-const { protect } = require('../middleware/authMiddleware');
+const MiddlewareFactory = require('../patterns/middleware/MiddlewareFactory');
 
-// Add POST route for creating notifications
-router.post('/', protect, async (req, res) => {
+// Validation rules for notifications
+const notificationValidationRules = {
+  '/api/notifications': {
+    'POST': {
+      title: { required: true },
+      message: { required: true },
+      type: { required: true }
+    }
+  }
+};
+
+// Create notification - with validation and auth
+router.post('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createFullChain(notificationValidationRules, ['admin', 'user']);
+  await middleware.handle(req, res, next);
+}, async (req, res) => {
   try {
     const { title, message, type, relatedId } = req.body;
     await createNotification(req.user._id, title, message, type, relatedId);
@@ -19,8 +33,22 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-router.get('/', protect, getUserNotifications);
-router.put('/:id/read', protect, markAsRead);
-router.delete('/:id', protect, deleteNotification);
+// Get user notifications - auth only
+router.get('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, getUserNotifications);
+
+// Mark as read - auth only
+router.put('/:id/read', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, markAsRead);
+
+// Delete notification - auth only
+router.delete('/:id', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, deleteNotification);
 
 module.exports = router;

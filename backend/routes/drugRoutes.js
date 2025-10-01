@@ -9,20 +9,56 @@ const {
     searchDrugs,
     checkMedicationAvailability
 } = require('../controllers/drugController');
-const { protect } = require('../middleware/authMiddleware');
-const adminMiddleware = require('../middleware/adminMiddleware');
+const MiddlewareFactory = require('../patterns/middleware/MiddlewareFactory');
 
-// READ routes - accessible to all authenticated users
-router.get('/', protect, getDrugs); // Remove adminMiddleware
-router.get('/search', protect, searchDrugs); // Remove adminMiddleware
-router.get('/:id', protect, getDrugById); // Remove adminMiddleware
+// Validation rules
+const drugValidationRules = {
+  '/api/drugs': {
+    'POST': {
+      medicineName: { required: true },
+      medicineId: { required: true },
+      groupName: { required: true },
+      stock: { required: true, type: 'number' }
+    }
+  }
+};
 
-// Availability check - for prescription creation
-router.post('/check-availability', protect, checkMedicationAvailability);
+// READ routes - with auth middleware
+router.get('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, getDrugs);
 
-// WRITE routes - admin only
-router.post('/', protect, adminMiddleware, createDrug);
-router.put('/:id', protect, adminMiddleware, updateDrug);
-router.delete('/:id', protect, adminMiddleware, deleteDrug);
+router.get('/search', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, searchDrugs);
+
+router.get('/:id', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, getDrugById);
+
+// Availability check - with auth
+router.post('/check-availability', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  await middleware.handle(req, res, next);
+}, checkMedicationAvailability);
+
+// WRITE routes - admin only with validation
+router.post('/', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createFullChain(drugValidationRules, ['admin']);
+  await middleware.handle(req, res, next);
+}, createDrug);
+
+router.put('/:id', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAdminChain();
+  await middleware.handle(req, res, next);
+}, updateDrug);
+
+router.delete('/:id', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAdminChain();
+  await middleware.handle(req, res, next);
+}, deleteDrug);
 
 module.exports = router;
