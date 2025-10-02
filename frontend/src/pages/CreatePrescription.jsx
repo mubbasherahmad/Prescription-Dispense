@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+import axiosInstance from '../axiosConfig';
 
 export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated, editingPrescription }) {
   const [patientName, setPatientName] = useState('');
@@ -73,34 +72,22 @@ export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated,
         const med = medications[i];
         if (med.name.trim() && med.dosage.trim()) {
           try {
-            const response = await fetch(`${API_BASE_URL}/drugs/check-availability`, {
-              method: 'POST',
+            const token = localStorage.getItem('token');
+            const response = await axiosInstance.post('/api/drugs/check-availability', {
+              name: med.name,
+              dosage: med.dosage
+            }, {
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
-              body: JSON.stringify({
-                name: med.name,
-                dosage: med.dosage
-              })
+                'Authorization': `Bearer ${token}`
+              }
             });
             
-            if (response.ok) {
-              const data = await response.json();
-              newStatus[i] = {
-                available: data.available,
-                message: data.message,
-                stock: data.stock,
-                required: data.required
-              };
-            } else {
-              newStatus[i] = {
-                available: false,
-                message: 'Error checking availability',
-                stock: 0,
-                required: 0
-              };
-            }
+            newStatus[i] = {
+              available: response.data.available,
+              message: response.data.message,
+              stock: response.data.stock,
+              required: response.data.required
+            };
           } catch (error) {
             newStatus[i] = {
               available: false,
@@ -234,26 +221,18 @@ export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated,
 
       // Update or Create
       const url = editingPrescription
-        ? `${API_BASE_URL}/prescriptions/${editingPrescription._id}`
-        : `${API_BASE_URL}/prescriptions`;
+        ? `/api/prescriptions/${editingPrescription._id}`
+        : '/api/prescriptions';
 
-      const method = editingPrescription ? 'PUT' : 'POST';
+      const method = editingPrescription ? 'put' : 'post';
 
-      const response = await fetch(url, {
-        method: method,
+      const response = await axiosInstance[method](url, payload, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${editingPrescription ? 'update' : 'create'} prescription`);
-      }
-
-      const prescription = await response.json();
+      const prescription = response.data;
 
       if (editingPrescription) {
         onUpdated?.(prescription);
@@ -261,7 +240,7 @@ export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated,
         onCreated?.(prescription);
       }
     } catch (err) {
-      setErr(err.message || `Failed to ${editingPrescription ? 'update' : 'create'} prescription`);
+      setErr(err.response?.data?.message || err.message || `Failed to ${editingPrescription ? 'update' : 'create'} prescription`);
     } finally {
       setSubmitting(false);
     }
