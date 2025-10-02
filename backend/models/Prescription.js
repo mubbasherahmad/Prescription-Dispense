@@ -80,8 +80,8 @@ const PrescriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'validated', 'dispensed', 'expired', 'cancelled'],
-      default: 'pending'
+      enum: ['unvalidated', 'validated', 'dispensed'],
+      default: 'unvalidated'
     },
     expiryDate: {
       type: Date,

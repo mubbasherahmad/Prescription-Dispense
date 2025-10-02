@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-export default function CreatePrescriptionModal({ onClose, onCreated }) {
+export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated, editingPrescription }) {
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
   const [medications, setMedications] = useState([
@@ -14,6 +14,24 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
   const [err, setErr] = useState('');
   const [medicationStatus, setMedicationStatus] = useState({});
   const backdropRef = useRef(null);
+
+  // Populate form if editing
+  useEffect(() => {
+    if (editingPrescription) {
+      setPatientName(editingPrescription.patientName || '');
+      setPatientAge(editingPrescription.patientAge?.toString() || '');
+      setMedications(editingPrescription.medications?.length > 0
+        ? editingPrescription.medications.map(med => ({
+            name: med.name || '',
+            dosage: med.dosage || '',
+            frequency: med.frequency || '',
+            duration: med.duration || ''
+          }))
+        : [{ name: '', dosage: '', frequency: '', duration: '' }]
+      );
+      setNotes(editingPrescription.notes || '');
+    }
+  }, [editingPrescription]);
 
   // Close on ESC
   useEffect(() => {
@@ -196,9 +214,9 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
 
     try {
       const token = localStorage.getItem('token');
-      
+
       // Filter out empty medications
-      const validMedications = medications.filter(med => 
+      const validMedications = medications.filter(med =>
         med.name.trim() && med.dosage.trim() && med.frequency.trim() && med.duration.trim()
       );
 
@@ -213,8 +231,15 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
         notes: notes.trim(),
       };
 
-      const response = await fetch(`${API_BASE_URL}/prescriptions`, {
-        method: 'POST',
+      // Update or Create
+      const url = editingPrescription
+        ? `${API_BASE_URL}/prescriptions/${editingPrescription._id}`
+        : `${API_BASE_URL}/prescriptions`;
+
+      const method = editingPrescription ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -224,13 +249,18 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create prescription');
+        throw new Error(errorData.message || `Failed to ${editingPrescription ? 'update' : 'create'} prescription`);
       }
 
-      const createdPrescription = await response.json();
-      onCreated?.(createdPrescription);
+      const prescription = await response.json();
+
+      if (editingPrescription) {
+        onUpdated?.(prescription);
+      } else {
+        onCreated?.(prescription);
+      }
     } catch (err) {
-      setErr(err.message || 'Failed to create prescription');
+      setErr(err.message || `Failed to ${editingPrescription ? 'update' : 'create'} prescription`);
     } finally {
       setSubmitting(false);
     }
@@ -253,7 +283,9 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
       >
         {/* Header - Fixed */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
-          <h2 className="text-xl font-bold text-gray-900">Create Prescription</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {editingPrescription ? 'Edit Prescription' : 'Create Prescription'}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -446,10 +478,10 @@ export default function CreatePrescriptionModal({ onClose, onCreated }) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Creating...
+                {editingPrescription ? 'Updating...' : 'Creating...'}
               </span>
             ) : (
-              'Create Prescription'
+              editingPrescription ? 'Update Prescription' : 'Create Prescription'
             )}
           </button>
         </div>

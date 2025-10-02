@@ -12,6 +12,7 @@ export default function PrescriptionMain() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingPrescription, setEditingPrescription] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -147,12 +148,16 @@ export default function PrescriptionMain() {
     }
   };
 
-  // Cancel prescription
-  const cancelPrescription = async (id) => {
+  // Delete prescription
+  const deletePrescription = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this prescription?')) {
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/prescriptions/${id}/cancel`, {
-        method: 'PUT',
+      const response = await fetch(`${API_BASE_URL}/prescriptions/${id}`, {
+        method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -160,20 +165,16 @@ export default function PrescriptionMain() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to cancel prescription');
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to delete prescription');
       }
 
-      const updatedPrescription = await response.json();
-      setPrescriptions(prev => 
-        prev.map(prescription => 
-          prescription._id === id ? updatedPrescription : prescription
-        )
-      );
-
+      setPrescriptions(prev => prev.filter(prescription => prescription._id !== id));
       fetchNotifications();
     } catch (err) {
       setError(err.message);
-      console.error('Error canceling prescription:', err);
+      console.error('Error deleting prescription:', err);
+      alert(err.message);
     }
   };
 
@@ -182,6 +183,28 @@ export default function PrescriptionMain() {
     setPrescriptions(prev => [...prev, newPrescription]);
     setShowCreateModal(false);
     fetchNotifications();
+  };
+
+  // Handle prescription updated from modal
+  const handlePrescriptionUpdated = (updatedPrescription) => {
+    setPrescriptions(prev =>
+      prev.map(p => p._id === updatedPrescription._id ? updatedPrescription : p)
+    );
+    setEditingPrescription(null);
+    setShowCreateModal(false);
+    fetchNotifications();
+  };
+
+  // Open edit modal
+  const handleEditPrescription = (prescription) => {
+    setEditingPrescription(prescription);
+    setShowCreateModal(true);
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setEditingPrescription(null);
   };
 
   // Handle logout
@@ -197,7 +220,7 @@ export default function PrescriptionMain() {
     // Apply status filter based on active filter
     switch (activeFilter) {
       case 'validation':
-        filtered = filtered.filter(prescription => prescription.status === 'pending');
+        filtered = filtered.filter(prescription => prescription.status === 'unvalidated');
         break;
       case 'dispensations':
         filtered = filtered.filter(prescription => prescription.status === 'validated');
@@ -211,7 +234,7 @@ export default function PrescriptionMain() {
     if (searchTerm) {
       filtered = filtered.filter(prescription =>
         prescription.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prescription.medications?.some(med => 
+        prescription.medications?.some(med =>
           med.name?.toLowerCase().includes(searchTerm.toLowerCase())
         ) ||
         prescription.status?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -226,16 +249,12 @@ export default function PrescriptionMain() {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
+      case 'unvalidated':
         return 'bg-yellow-100 text-yellow-800';
       case 'validated':
         return 'bg-blue-100 text-blue-800';
       case 'dispensed':
         return 'bg-green-100 text-green-800';
-      case 'expired':
-        return 'bg-red-100 text-red-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -564,8 +583,9 @@ export default function PrescriptionMain() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex gap-2">
-                        {prescription.status === 'pending' && (
-                          <button 
+                        {/* Validation Queue: Show Validate button only */}
+                        {activeFilter === 'validation' && prescription.status === 'unvalidated' && (
+                          <button
                             onClick={() => validatePrescription(prescription._id)}
                             className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
                             title="Validate"
@@ -573,8 +593,30 @@ export default function PrescriptionMain() {
                             Validate
                           </button>
                         )}
-                        {prescription.status === 'validated' && (
-                          <button 
+
+                        {/* All Prescriptions: Show Edit/Delete for unvalidated */}
+                        {activeFilter === 'all' && prescription.status === 'unvalidated' && (
+                          <>
+                            <button
+                              onClick={() => handleEditPrescription(prescription)}
+                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                              title="Edit"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deletePrescription(prescription._id)}
+                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
+                              title="Delete"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+
+                        {/* Dispensations: Show Dispense button for validated */}
+                        {activeFilter === 'dispensations' && prescription.status === 'validated' && (
+                          <button
                             onClick={() => dispensePrescription(prescription._id)}
                             className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm"
                             title="Dispense"
@@ -582,16 +624,19 @@ export default function PrescriptionMain() {
                             Dispense
                           </button>
                         )}
-                        {(prescription.status === 'pending' || prescription.status === 'validated') && (
-                          <button 
-                            onClick={() => cancelPrescription(prescription._id)}
-                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                            title="Cancel"
+
+                        {/* All Prescriptions: Show appropriate action for validated/dispensed */}
+                        {activeFilter === 'all' && prescription.status === 'validated' && (
+                          <button
+                            onClick={() => dispensePrescription(prescription._id)}
+                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm"
+                            title="Dispense"
                           >
-                            Cancel
+                            Dispense
                           </button>
                         )}
-                        {prescription.status === 'dispensed' && (
+
+                        {activeFilter === 'all' && prescription.status === 'dispensed' && (
                           <span className="text-sm text-gray-500">Completed</span>
                         )}
                       </div>
@@ -605,11 +650,13 @@ export default function PrescriptionMain() {
         </div>
       </div>
 
-      {/* Create Prescription Modal - Only show for regular users */}
+      {/* Create/Edit Prescription Modal - Only show for regular users */}
       {showCreateModal && user?.role !== 'admin' && (
         <CreatePrescriptionModal
-          onClose={() => setShowCreateModal(false)}
+          onClose={handleCloseModal}
           onCreated={handlePrescriptionCreated}
+          onUpdated={handlePrescriptionUpdated}
+          editingPrescription={editingPrescription}
         />
       )}
     </div>

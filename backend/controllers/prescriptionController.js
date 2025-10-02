@@ -79,12 +79,12 @@ const validatePrescription = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Prescription not found' });
   }
 
-  if (prescription.status === 'expired') {
-    return res.status(400).json({ message: 'Cannot validate expired prescription' });
+  if (prescription.status === 'validated') {
+    return res.status(400).json({ message: 'Prescription is already validated' });
   }
 
-  if (prescription.status === 'cancelled') {
-    return res.status(400).json({ message: 'Cannot validate cancelled prescription' });
+  if (prescription.status === 'dispensed') {
+    return res.status(400).json({ message: 'Cannot validate a dispensed prescription' });
   }
 
   // Check if all medications are available before validation
@@ -131,10 +131,6 @@ const dispensePrescription = asyncHandler(async (req, res) => {
 
   if (prescription.status !== 'validated') {
     return res.status(400).json({ message: 'Prescription must be validated before dispensing' });
-  }
-
-  if (prescription.status === 'cancelled') {
-    return res.status(400).json({ message: 'Cannot dispense a cancelled prescription' });
   }
 
   try {
@@ -211,15 +207,10 @@ const updatePrescription = asyncHandler(async (req, res) => {
 
   console.log('Found prescription:', prescription);
 
-  // Check if prescription can be edited (cannot edit dispensed or cancelled prescriptions)
+  // Check if prescription can be edited (cannot edit dispensed prescriptions)
   if (prescription.status === 'dispensed') {
     console.log('Cannot edit dispensed prescription');
     return res.status(400).json({ message: 'Cannot edit a dispensed prescription' });
-  }
-
-  if (prescription.status === 'cancelled') {
-    console.log('Cannot edit cancelled prescription');
-    return res.status(400).json({ message: 'Cannot edit a cancelled prescription' });
   }
 
   // Update allowed fields
@@ -303,11 +294,37 @@ const cancelPrescription = asyncHandler(async (req, res) => {
   return res.json(prescription);
 });
 
+// @desc    Delete a prescription
+// @route   DELETE /api/prescriptions/:id
+// @access  Private
+const deletePrescription = asyncHandler(async (req, res) => {
+  const prescription = await Prescription.findById(req.params.id);
+
+  if (!prescription) {
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  // Check if prescription belongs to the user
+  if (prescription.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to delete this prescription' });
+  }
+
+  // Only allow deletion of unvalidated prescriptions
+  if (prescription.status !== 'unvalidated') {
+    return res.status(400).json({ message: 'Can only delete unvalidated prescriptions' });
+  }
+
+  await Prescription.findByIdAndDelete(req.params.id);
+
+  return res.json({ message: 'Prescription deleted successfully' });
+});
+
 module.exports = {
   createPrescription,
   listPrescriptions,
   validatePrescription,
   dispensePrescription,
   updatePrescription,
-  cancelPrescription,
+  deletePrescription,
+  // cancelPrescription, // Removed - only 3 statuses allowed: unvalidated, validated, dispensed
 };
