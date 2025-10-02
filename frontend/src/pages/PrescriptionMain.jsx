@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import CreatePrescriptionModal from './CreatePrescription';
+import {
+  SortByDateStrategy,
+  SortByDateOldestStrategy,
+  PrescriptionSorter
+} from '../strategies/SortStrategy';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
@@ -15,6 +20,11 @@ export default function PrescriptionMain() {
   const [editingPrescription, setEditingPrescription] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Strategy Pattern: Sorting and Filtering
+  const [sorter] = useState(() => new PrescriptionSorter(new SortByDateStrategy()));
+  const [currentSortStrategy, setCurrentSortStrategy] = useState('date-newest');
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,6 +223,22 @@ export default function PrescriptionMain() {
     navigate('/login');
   };
 
+  // Strategy Pattern: Handle sort strategy change
+  const handleSortChange = (strategyKey) => {
+    setCurrentSortStrategy(strategyKey);
+
+    switch (strategyKey) {
+      case 'date-newest':
+        sorter.setStrategy(new SortByDateStrategy());
+        break;
+      case 'date-oldest':
+        sorter.setStrategy(new SortByDateOldestStrategy());
+        break;
+      default:
+        sorter.setStrategy(new SortByDateStrategy());
+    }
+  };
+
   // Filter prescriptions based on active filter and search term
   const getFilteredPrescriptions = () => {
     let filtered = prescriptions;
@@ -244,7 +270,11 @@ export default function PrescriptionMain() {
     return filtered;
   };
 
-  const filteredPrescriptions = getFilteredPrescriptions();
+  // Strategy Pattern: Apply sorting strategy using useMemo for performance
+  const filteredPrescriptions = useMemo(() => {
+    const filtered = getFilteredPrescriptions();
+    return sorter.sort(filtered);
+  }, [prescriptions, activeFilter, searchTerm, currentSortStrategy]);
 
   // Get status color
   const getStatusColor = (status) => {
@@ -475,10 +505,49 @@ export default function PrescriptionMain() {
               <span className="px-3 lg:px-4 py-2 text-gray-700 text-sm lg:text-base font-medium">
                 LIST
               </span>
-              <button className="px-3 lg:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm lg:text-base">
-                <span>Filter</span>
-                <span>🔻</span>
-              </button>
+
+              {/* Strategy Pattern: Filter Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className="px-3 lg:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm lg:text-base"
+                >
+                  <span>Filter</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isFilterOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 min-w-[200px]">
+                    <div className="p-2">
+                      <p className="text-xs text-gray-500 px-2 py-1">Filter by:</p>
+                      <button
+                        onClick={() => {
+                          handleSortChange('date-newest');
+                          setIsFilterOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm ${
+                          currentSortStrategy === 'date-newest' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                        }`}
+                      >
+                        Date (Newest First)
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSortChange('date-oldest');
+                          setIsFilterOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm ${
+                          currentSortStrategy === 'date-oldest' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                        }`}
+                      >
+                        Date (Oldest First)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 lg:gap-4">
