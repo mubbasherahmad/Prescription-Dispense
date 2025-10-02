@@ -8,8 +8,7 @@ import {
   PrescriptionSorter
 } from '../strategies/SortStrategy';
 import { PrescriptionProxy } from '../proxies/PrescriptionProxy';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+import axiosInstance from '../axiosConfig';
 
 export default function PrescriptionMain() {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -37,27 +36,19 @@ export default function PrescriptionMain() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${API_BASE_URL}/prescriptions`, {
-        method: 'GET',
+      const response = await axiosInstance.get('/api/prescriptions', {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-        throw new Error('Failed to fetch prescriptions');
-      }
-
-      const data = await response.json();
-      setPrescriptions(data);
+      setPrescriptions(response.data);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching prescriptions:', err);
+      if (err.response?.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -67,18 +58,13 @@ export default function PrescriptionMain() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
-        method: 'GET',
+      const response = await axiosInstance.get('/api/notifications', {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-      }
+      setNotifications(response.data);
     } catch (err) {
       console.error('Error fetching notifications:', err);
       setNotifications([]);
@@ -101,20 +87,13 @@ export default function PrescriptionMain() {
   const validatePrescription = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/prescriptions/${id}/validate`, {
-        method: 'PUT',
+      const response = await axiosInstance.put(`/api/prescriptions/${id}/validate`, {}, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to validate prescription');
-      }
-
-      const updatedPrescription = await response.json();
+      const updatedPrescription = response.data;
       setPrescriptions(prev => 
         prev.map(prescription => 
           prescription._id === id ? updatedPrescription : prescription
@@ -132,20 +111,13 @@ export default function PrescriptionMain() {
   const dispensePrescription = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/prescriptions/${id}/dispense`, {
-        method: 'PUT',
+      const response = await axiosInstance.put(`/api/prescriptions/${id}/dispense`, {}, {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to dispense prescription');
-      }
-
-      const result = await response.json();
+      const result = response.data;
       setPrescriptions(prev => 
         prev.map(prescription => 
           prescription._id === id ? result.prescription : prescription
@@ -168,23 +140,8 @@ export default function PrescriptionMain() {
     try {
       const token = localStorage.getItem('token');
 
-      // Create axios-like object for the proxy
-      const axiosLike = {
-        delete: async (url, config) => {
-          const response = await fetch(`${API_BASE_URL}${url}`, {
-            method: 'DELETE',
-            headers: config.headers
-          });
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.message || 'Failed to delete prescription');
-          }
-          return { data: await response.json() };
-        }
-      };
-
       // Use Proxy pattern to control access based on user role
-      const prescriptionProxy = new PrescriptionProxy(axiosLike, token, user?.role);
+      const prescriptionProxy = new PrescriptionProxy(axiosInstance, token, user?.role);
       await prescriptionProxy.deletePrescription(id);
 
       setPrescriptions(prev => prev.filter(prescription => prescription._id !== id));
@@ -310,7 +267,6 @@ export default function PrescriptionMain() {
         return 'PRESCRIPTIONS';
     }
   };
-
 
   // Format date
   const formatDate = (dateString) => {

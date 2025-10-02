@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+import axiosInstance from '../axiosConfig';
 
 export default function Dashboard() {
   const [prescriptions, setPrescriptions] = useState([]);
@@ -19,26 +18,18 @@ export default function Dashboard() {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`${API_BASE_URL}/prescriptions`, {
-        method: 'GET',
+      const response = await axiosInstance.get('/api/prescriptions', {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-        throw new Error('Failed to fetch prescriptions');
-      }
-
-      const data = await response.json();
-      setPrescriptions(data);
+      setPrescriptions(response.data);
     } catch (err) {
       console.error('Error fetching prescriptions:', err);
+      if (err.response?.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -48,18 +39,13 @@ export default function Dashboard() {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/notifications`, {
-        method: 'GET',
+      const response = await axiosInstance.get('/api/notifications', {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-      }
+      setNotifications(response.data);
     } catch (err) {
       console.error('Error fetching notifications:', err);
       setNotifications([]);
