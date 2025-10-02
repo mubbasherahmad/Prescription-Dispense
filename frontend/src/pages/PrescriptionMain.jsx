@@ -282,6 +282,7 @@ export default function PrescriptionMain() {
   const filteredPrescriptions = useMemo(() => {
     const filtered = getFilteredPrescriptions();
     return sorter.sort(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prescriptions, activeFilter, searchTerm, currentSortStrategy]);
 
   // Get status color
@@ -310,17 +311,6 @@ export default function PrescriptionMain() {
     }
   };
 
-  // Get description based on active filter
-  const getPageDescription = () => {
-    switch (activeFilter) {
-      case 'validation':
-        return "Prescriptions pending validation";
-      case 'dispensations':
-        return "Validated prescriptions ready for dispensing";
-      default:
-        return "All prescriptions";
-    }
-  };
 
   // Format date
   const formatDate = (dateString) => {
@@ -346,6 +336,7 @@ export default function PrescriptionMain() {
     }, 30000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const navClass = ({ isActive }) =>

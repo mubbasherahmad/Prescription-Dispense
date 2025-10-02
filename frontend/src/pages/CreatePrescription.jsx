@@ -123,6 +123,7 @@ export default function CreatePrescriptionModal({ onClose, onCreated, onUpdated,
     }, 500);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [medications]);
 
   const getMedicationStatusIcon = (index) => {
