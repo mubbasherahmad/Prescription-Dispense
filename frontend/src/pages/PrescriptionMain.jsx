@@ -7,6 +7,7 @@ import {
   SortByDateOldestStrategy,
   PrescriptionSorter
 } from '../strategies/SortStrategy';
+import { PrescriptionProxy } from '../proxies/PrescriptionProxy';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
@@ -158,7 +159,7 @@ export default function PrescriptionMain() {
     }
   };
 
-  // Delete prescription
+  // Delete prescription using Proxy pattern for role-based access control
   const deletePrescription = async (id) => {
     if (!window.confirm('Are you sure you want to delete this prescription?')) {
       return;
@@ -166,18 +167,25 @@ export default function PrescriptionMain() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/prescriptions/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to delete prescription');
-      }
+      // Create axios-like object for the proxy
+      const axiosLike = {
+        delete: async (url, config) => {
+          const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'DELETE',
+            headers: config.headers
+          });
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to delete prescription');
+          }
+          return { data: await response.json() };
+        }
+      };
+
+      // Use Proxy pattern to control access based on user role
+      const prescriptionProxy = new PrescriptionProxy(axiosLike, token, user?.role);
+      await prescriptionProxy.deletePrescription(id);
 
       setPrescriptions(prev => prev.filter(prescription => prescription._id !== id));
       fetchNotifications();
@@ -405,31 +413,27 @@ export default function PrescriptionMain() {
             <span>Home</span>
           </NavLink>
 
-          {/* Show prescription-related links only to regular users */}
-          {user?.role !== 'admin' && (
-            <>
-              <NavLink to="/prescriptions" className={navClass} onClick={() => setIsSidebarOpen(false)}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>All Prescriptions</span>
-              </NavLink>
+          {/* Prescription-related links visible to all users */}
+          <NavLink to="/prescriptions" className={navClass} onClick={() => setIsSidebarOpen(false)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>All Prescriptions</span>
+          </NavLink>
 
-              <NavLink to="/validation-queue" className={navClass} onClick={() => setIsSidebarOpen(false)}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Validation Queue</span>
-              </NavLink>
+          <NavLink to="/validation-queue" className={navClass} onClick={() => setIsSidebarOpen(false)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Validation Queue</span>
+          </NavLink>
 
-              <NavLink to="/dispensations" className={navClass} onClick={() => setIsSidebarOpen(false)}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <span>Dispensations</span>
-              </NavLink>
-            </>
-          )}
+          <NavLink to="/dispensations" className={navClass} onClick={() => setIsSidebarOpen(false)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span>Dispensations</span>
+          </NavLink>
 
           {/* Drug Inventory visible to all users */}
           <NavLink to="/drug-inventory" className={navClass} onClick={() => setIsSidebarOpen(false)}>
@@ -673,13 +677,15 @@ export default function PrescriptionMain() {
                             >
                               Edit
                             </button>
-                            <button
-                              onClick={() => deletePrescription(prescription._id)}
-                              className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                              title="Delete"
-                            >
-                              Delete
-                            </button>
+                            {user?.role === 'admin' && (
+                              <button
+                                onClick={() => deletePrescription(prescription._id)}
+                                className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
+                                title="Delete (Admin Only)"
+                              >
+                                Delete
+                              </button>
+                            )}
                           </>
                         )}
 

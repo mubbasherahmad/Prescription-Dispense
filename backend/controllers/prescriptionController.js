@@ -61,11 +61,13 @@ const createPrescription = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    List prescriptions for logged in user
+// @desc    List prescriptions for logged in user (or all if admin)
 // @route   GET /api/prescriptions
 // @access  Private
 const listPrescriptions = asyncHandler(async (req, res) => {
-  const prescriptions = await Prescription.find({ user: req.user._id });
+  // Admins can see all prescriptions, regular users only see their own
+  const query = req.user.role === 'admin' ? {} : { user: req.user._id };
+  const prescriptions = await Prescription.find(query);
   return res.json(prescriptions);
 });
 
