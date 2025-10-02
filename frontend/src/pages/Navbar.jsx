@@ -1,18 +1,10 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from '../context/AuthContext';
 import "./LandingPage.css";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
 
   const handleLoginClick = () => {
-    navigate('/login');
-  };
-
-  const handleLogoutClick = () => {
-    logout();
     navigate('/login');
   };
 
@@ -44,18 +36,9 @@ const Navbar = () => {
         <li onClick={() => handleNavClick('Prescriptions')}>Prescriptions</li>
         <li onClick={() => handleNavClick('Contact')}>Contact</li>
       </ul>
-      {user ? (
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <span>Welcome, {user.name}</span>
-          <button className="login-btn" onClick={handleLogoutClick}>
-            Log Out
-          </button>
-        </div>
-      ) : (
-        <button className="login-btn" onClick={handleLoginClick}>
-          Log In
-        </button>
-      )}
+      <button className="login-btn" onClick={handleLoginClick}>
+        Log In
+      </button>
     </nav>
   );
 };
