@@ -64,7 +64,7 @@ jobs:
         yarn install --frozen-lockfile
         echo "Backend dependencies installed"
         
-    # Install dependencies for frontend
+    # Install dependencies for frontendd
     - name: Install Frontend Dependencies
       working-directory: ./frontend
       run: |
