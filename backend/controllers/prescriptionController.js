@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Prescription = require('../models/Prescription');
 const { createNotification } = require('./notificationController');
-const { checkMedicationAvailability, deductMedicationStock } = require('../utils/drugInventory');
+const InventoryAdapterFactory = require('../patterns/adapters/InventoryAdapterFactory');
 
 // @desc    Create a new prescription
 // @route   POST /api/prescriptions
@@ -20,19 +20,24 @@ const createPrescription = asyncHandler(async (req, res) => {
   console.log('Creating prescription with data:', { patientName, patientAge, medications, notes });
 
   try {
-    // Check medication availability in inventory
-    const medicationsWithInventory = await checkMedicationAvailability(medications);
+    // Use Adapter Pattern for inventory operations
+    const inventoryAdapter = InventoryAdapterFactory.createAdapter('drug');
+    const availabilityResult = await inventoryAdapter.checkAvailability(medications);
     
-    // Check if all medications are available
-    const allMedicationsAvailable = medicationsWithInventory.every(med => med.stockAvailable);
-    
+    if (!availabilityResult.success) {
+      return res.status(400).json({ 
+        message: 'Error checking medication availability',
+        error: availabilityResult.error 
+      });
+    }
+
     const prescription = new Prescription({
       user: req.user._id,
       patientName,
       patientAge,
-      medications: medicationsWithInventory,
+      medications: availabilityResult.medications,
       notes,
-      allMedicationsAvailable
+      allMedicationsAvailable: availabilityResult.allMedicationsAvailable
     });
 
     console.log('Saving prescription...');
@@ -44,7 +49,7 @@ const createPrescription = asyncHandler(async (req, res) => {
       req.user._id,
       'New Prescription Created',
       `New prescription created for ${createdPrescription.patientName}` +
-      (allMedicationsAvailable ? ' - All medications available in inventory' : ' - Some medications may not be available'),
+      (availabilityResult.allMedicationsAvailable ? ' - All medications available' : ' - Some medications may not be available'),
       'prescription',
       createdPrescription._id
     );
@@ -52,7 +57,7 @@ const createPrescription = asyncHandler(async (req, res) => {
     console.log('📢 NOTIFICATION: New Prescription Created for', createdPrescription.patientName);
     console.log('💊 Prescription ID:', createdPrescription._id);
     console.log('👤 Created by user:', req.user._id);
-    console.log('📊 All medications available:', allMedicationsAvailable);
+    console.log('📊 All medications available:', availabilityResult.allMedicationsAvailable);
 
     return res.status(201).json(createdPrescription);
   } catch (error) {
@@ -89,15 +94,14 @@ const validatePrescription = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cannot validate a dispensed prescription' });
   }
 
-  // Check if all medications are available before validation
-  const unavailableMedications = prescription.medications.filter(med => 
-    med.stockChecked && !med.stockAvailable
-  );
-
-  if (unavailableMedications.length > 0) {
+  // Use Adapter Pattern for inventory check
+  const inventoryAdapter = InventoryAdapterFactory.createAdapter('drug');
+  const availabilityResult = await inventoryAdapter.checkAvailability(prescription.medications);
+  
+  if (!availabilityResult.allMedicationsAvailable) {
     return res.status(400).json({ 
       message: 'Cannot validate prescription - some medications are not available in inventory',
-      unavailableMedications: unavailableMedications.map(med => ({
+      unavailableMedications: availabilityResult.unavailableMedications.map(med => ({
         name: med.name,
         error: med.inventoryError
       }))
@@ -136,31 +140,29 @@ const dispensePrescription = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Check if all medications are available before dispensing
-    const unavailableMedications = prescription.medications.filter(med => 
-      med.stockChecked && !med.stockAvailable
-    );
-
-    if (unavailableMedications.length > 0) {
+    // Use Adapter Pattern for inventory operations
+    const inventoryAdapter = InventoryAdapterFactory.createAdapter('drug');
+    
+    // Check availability
+    const availabilityResult = await inventoryAdapter.checkAvailability(prescription.medications);
+    
+    if (!availabilityResult.allMedicationsAvailable) {
       return res.status(400).json({ 
         message: 'Cannot dispense prescription - some medications are not available in inventory',
-        unavailableMedications: unavailableMedications.map(med => ({
+        unavailableMedications: availabilityResult.unavailableMedications.map(med => ({
           name: med.name,
           error: med.inventoryError
         }))
       });
     }
 
-    // Deduct stock from inventory
-    const stockDeductionResults = await deductMedicationStock(prescription.medications);
+    // Deduct stock using adapter
+    const deductionResult = await inventoryAdapter.deductStock(prescription.medications);
     
-    // Check if all stock deductions were successful
-    const failedDeductions = stockDeductionResults.filter(result => !result.success);
-    
-    if (failedDeductions.length > 0) {
+    if (!deductionResult.success) {
       return res.status(400).json({
         message: 'Failed to deduct stock for some medications',
-        failedDeductions
+        failedDeductions: deductionResult.failedDeductions
       });
     }
 
@@ -181,11 +183,11 @@ const dispensePrescription = asyncHandler(async (req, res) => {
     console.log('📦 NOTIFICATION: Prescription Dispensed for', prescription.patientName);
     console.log('💊 Prescription ID:', prescription._id);
     console.log('👤 Dispensed by user:', req.user._id);
-    console.log('📊 Stock deduction results:', stockDeductionResults);
+    console.log('📊 Stock deduction results:', deductionResult.results);
 
     return res.json({
       prescription,
-      stockDeductionResults
+      stockDeductionResults: deductionResult.results
     });
   } catch (error) {
     console.error('Error dispensing prescription:', error);
@@ -225,12 +227,19 @@ const updatePrescription = asyncHandler(async (req, res) => {
   }
 
   if (medications && Array.isArray(medications) && medications.length > 0) {
-    // Re-check medication availability when medications are updated
-    const medicationsWithInventory = await checkMedicationAvailability(medications);
-    const allMedicationsAvailable = medicationsWithInventory.every(med => med.stockAvailable);
+    // Use Adapter Pattern to re-check medication availability
+    const inventoryAdapter = InventoryAdapterFactory.createAdapter('drug');
+    const availabilityResult = await inventoryAdapter.checkAvailability(medications);
     
-    prescription.medications = medicationsWithInventory;
-    prescription.allMedicationsAvailable = allMedicationsAvailable;
+    if (!availabilityResult.success) {
+      return res.status(400).json({ 
+        message: 'Error checking medication availability during update',
+        error: availabilityResult.error 
+      });
+    }
+    
+    prescription.medications = availabilityResult.medications;
+    prescription.allMedicationsAvailable = availabilityResult.allMedicationsAvailable;
   }
 
   if (notes !== undefined) {
@@ -328,5 +337,5 @@ module.exports = {
   dispensePrescription,
   updatePrescription,
   deletePrescription,
-  // cancelPrescription, // Removed - only 3 statuses allowed: unvalidated, validated, dispensed
+  cancelPrescription,
 };
