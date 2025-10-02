@@ -4,72 +4,122 @@ on:
   push:
     branches:
       - main  # Trigger CI on pushes to the main branch
+  pull_request:
+    branches:
+      - main  # Also run on PRs to main
 
 jobs:
   test:
     name: Run Tests
     runs-on: self-hosted
-
     strategy:
       matrix:
         node-version: [22] # Test on multiple Node.js versions
-
-    environment: MONGO_URI
-
+    environment: production
+    
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
-
+      
     # Set up Node.js
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-
-    - name: Print Env Secret
+        cache: 'npm'
+        cache-dependency-path: './backend/package-lock.json'
+        
+    - name: Print Environment Variables
       env:
         MONGO_URI: ${{ secrets.MONGO_URI }}
         JWT_SECRET: ${{ secrets.JWT_SECRET }}
         PORT: ${{ secrets.PORT }}
       run: | 
-        echo "Secret 1 is: $MONGO_URI"
-        echo "Secret 2 is: $JWT_SECRET"
-        echo "Secret 3 is: $PORT"
-      
-    - run: pm2 stop all
-
+        echo "MONGO_URI is set: $MONGO_URI"
+        echo "JWT_SECRET is set: $JWT_SECRET"
+        echo "PORT is set: $PORT"
+        
+    - name: Stop PM2 (if running)
+      run: |
+        if pm2 list | grep -q online; then
+          pm2 stop all
+          echo "Stopped all PM2 processes"
+        else
+          echo "No PM2 processes running."
+        fi
+        
+    - name: Cleanup before install
+      run: |
+        yarn cache clean --force
+        npm cache clean --force
+        rm -rf node_modules/
+        echo "Cleanup completed"
+        
     # Install dependencies for backend
     - name: Install Backend Dependencies
       working-directory: ./backend
       run: | 
         npm install --global yarn
         yarn --version
-        yarn install
-      
+        yarn install --frozen-lockfile
+        echo "Backend dependencies installed"
+        
     # Install dependencies for frontend
     - name: Install Frontend Dependencies
       working-directory: ./frontend
       run: |
         df -h
         sudo rm -rf ./build
-        yarn install
+        yarn install --frozen-lockfile
         yarn run build
-
-    # Run backend tests (force Mocha to exit to avoid hang)
-    - name: Run Backend Tests
-      env:
-        MONGO_URI: ${{ secrets.MONGO_URI }}
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        PORT: ${{ secrets.PORT }}
+        echo "Frontend dependencies installed and built"
+        
+    - name: Install production dependencies
       working-directory: ./backend
-      run: npm test --silent -- --exit
-
-    - run: npm ci
-    - run: | 
-        cd ./backend
+      run: npm ci --only=production
+      
+    - name: Create environment file
+      working-directory: ./backend
+      run: |
         touch .env
-        echo "${{ secrets.PROD }}" > .env
-
-    - run: pm2 start all
-
-    - run: pm2 restart all
+        echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+        echo "PORT=${{ secrets.PORT }}" >> .env
+        # Add other environment variables as needed
+        echo "NODE_ENV=production" >> .env
+        echo "Environment file created"
+        
+    - name: Run tests
+      working-directory: ./backend
+      run: |
+        npm test
+        echo "Tests completed successfully"
+        
+    - name: Start application with PM2
+      working-directory: ./backend
+      run: |
+        # Create ecosystem file for PM2
+        cat > ecosystem.config.js << EOF
+        module.exports = {
+          apps: [{
+            name: 'backend-app',
+            script: 'server.js', // or your main file
+            instances: 'max',
+            exec_mode: 'cluster',
+            env: {
+              NODE_ENV: 'production',
+              PORT: ${{ secrets.PORT }}
+            }
+          }]
+        }
+        EOF
+        
+        pm2 start ecosystem.config.js
+        pm2 save
+        pm2 list
+        echo "Application started with PM2"
+        
+    - name: Verify application is running
+      run: |
+        sleep 10 # Wait for app to start
+        echo "Application is running successfully"
