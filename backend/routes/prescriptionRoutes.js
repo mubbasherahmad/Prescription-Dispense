@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   createPrescription,
+  clonePrescription, // 🔥 Import clone function
   listPrescriptions,
   validatePrescription,
   dispensePrescription,
@@ -27,6 +28,18 @@ router.post('/', async (req, res, next) => {
   try {
     await middleware.handle(req, res, () => {
       createPrescription(req, res, next);
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 🔥 PROTOTYPE PATTERN: Clone prescription - auth only
+router.post('/:id/clone', async (req, res, next) => {
+  const middleware = MiddlewareFactory.createAuthChain();
+  try {
+    await middleware.handle(req, res, () => {
+      clonePrescription(req, res, next);
     });
   } catch (error) {
     next(error);

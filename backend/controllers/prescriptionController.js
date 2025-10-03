@@ -66,6 +66,64 @@ const createPrescription = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Clone a prescription (PROTOTYPE PATTERN)
+// @route   POST /api/prescriptions/:id/clone
+// @access  Private
+const clonePrescription = asyncHandler(async (req, res) => {
+  console.log('Clone prescription request received for ID:', req.params.id);
+  console.log('Clone overrides:', req.body);
+
+  const originalPrescription = await Prescription.findById(req.params.id);
+  
+  if (!originalPrescription) {
+    console.log('Prescription not found for cloning');
+    return res.status(404).json({ message: 'Prescription not found' });
+  }
+
+  // Check if user has permission to clone this prescription
+  if (originalPrescription.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Not authorized to clone this prescription' });
+  }
+
+  try {
+    const { patientName, patientAge, notes, medications } = req.body;
+
+    // 🔥 PROTOTYPE PATTERN: Use the clone method
+    const clonedPrescription = originalPrescription.clone({
+      patientName: patientName || originalPrescription.patientName,
+      patientAge: patientAge || originalPrescription.patientAge,
+      notes: notes || originalPrescription.notes,
+      medications: medications || originalPrescription.medications
+    });
+
+    // Set the current user as the owner of the cloned prescription
+    clonedPrescription.user = req.user._id;
+
+    console.log('Saving cloned prescription...');
+    await clonedPrescription.save();
+    console.log('Prescription cloned successfully. New ID:', clonedPrescription._id);
+
+    // Create notification for cloning
+    await createNotification(
+      req.user._id,
+      'Prescription Cloned',
+      `Prescription for ${originalPrescription.patientName} was successfully cloned`,
+      'prescription',
+      clonedPrescription._id
+    );
+
+    console.log('📋 NOTIFICATION: Prescription Cloned from', originalPrescription.patientName);
+    console.log('💊 Original Prescription ID:', originalPrescription._id);
+    console.log('💊 Cloned Prescription ID:', clonedPrescription._id);
+    console.log('👤 Cloned by user:', req.user._id);
+
+    return res.status(201).json(clonedPrescription);
+  } catch (error) {
+    console.error('Error cloning prescription:', error);
+    return res.status(400).json({ message: error.message });
+  }
+});
+
 // @desc    List prescriptions for logged in user (or all if admin)
 // @route   GET /api/prescriptions
 // @access  Private
@@ -332,6 +390,7 @@ const deletePrescription = asyncHandler(async (req, res) => {
 
 module.exports = {
   createPrescription,
+  clonePrescription, // 🔥 Added clone function
   listPrescriptions,
   validatePrescription,
   dispensePrescription,

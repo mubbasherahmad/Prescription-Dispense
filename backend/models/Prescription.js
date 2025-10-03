@@ -109,4 +109,27 @@ const PrescriptionSchema = new mongoose.Schema(
   }
 );
 
+// 🔥 PROTOTYPE PATTERN: Add clone method to schema
+PrescriptionSchema.methods.clone = function(overrides = {}) {
+  const clonedData = this.toObject();
+  
+  // Remove MongoDB specific fields
+  delete clonedData._id;
+  delete clonedData.__v;
+  delete clonedData.createdAt;
+  delete clonedData.updatedAt;
+  delete clonedData.validatedAt;
+  delete clonedData.dispensedAt;
+  delete clonedData.cancelledAt;
+  
+  // Reset status for cloned prescription
+  clonedData.status = 'unvalidated';
+  clonedData.allMedicationsAvailable = false;
+  
+  // Apply user overrides
+  const finalData = { ...clonedData, ...overrides };
+  
+  return new this.constructor(finalData);
+};
+
 module.exports = mongoose.model('Prescription', PrescriptionSchema);
